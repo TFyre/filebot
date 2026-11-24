@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions
 
 rem ---------------------------------------------------------------------------
 rem FileBot private launcher (console logging stays visible)
@@ -19,15 +19,6 @@ rem ---------------------------------------------------------------------------
 set "APP_ROOT=%~dp0"
 set "NATIVE=%APP_ROOT%lib\native\win32-x64"
 
-rem --- if this folder has its own downloads\data, use it instead of the baked URLs
-rem --- (this is what makes a copied run\ folder self-contained)
-set "DATA_OPTS="
-set "LOCAL_DATA=%APP_ROOT%downloads\data"
-if exist "%LOCAL_DATA%\moviedb.txt.xz" (
-    set "LOCAL_DATA_URI=file:///!LOCAL_DATA:\=/!"
-    set "DATA_OPTS=-Durl.release-groups=!LOCAL_DATA_URI!/release-groups.txt.xz -Durl.query-blacklist=!LOCAL_DATA_URI!/query-blacklist.txt.xz -Durl.series-mappings=!LOCAL_DATA_URI!/series-mappings.txt.xz -Durl.movie-list=!LOCAL_DATA_URI!/moviedb.txt.xz -Durl.thetvdb-index=!LOCAL_DATA_URI!/thetvdb.txt.xz -Durl.anidb-index=!LOCAL_DATA_URI!/anidb.txt.xz -Durl.osdb-index=!LOCAL_DATA_URI!/osdb.txt.xz"
-)
-
 rem --- pick a JavaFX-enabled JDK, so MediaInfo/JavaFX features keep working
 set "JAVA_EXE=java"
 if defined FILEBOT_JAVA if exist "%FILEBOT_JAVA%" set "JAVA_EXE=%FILEBOT_JAVA%"
@@ -45,8 +36,6 @@ if not exist "%JAR%" (
 
 "%JAVA_EXE%" ^
  -Dapplication.deployment=msi ^
- -Dapplication.update=skip ^
- -Dapplication.help=skip ^
  -Djava.net.useSystemProxies=true ^
  -DuseNativeShell=true ^
  -DuseExtendedFileAttributes=true ^
@@ -57,7 +46,6 @@ if not exist "%JAR%" (
  "-Djna.library.path=%NATIVE%" ^
  "-Djava.library.path=%NATIVE%" ^
  "-Dnet.filebot.AcoustID.fpcalc=%NATIVE%\fpcalc.exe" ^
- %DATA_OPTS% ^
  %JAVA_OPTS% ^
  %FILEBOT_OPTS% ^
  -jar "%JAR%" %*

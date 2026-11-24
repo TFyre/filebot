@@ -15,7 +15,7 @@
 | `test/` | JUnit sources; **not** compiled by the `fatjar` target. |
 | `lib/jars/` | Hand-vendored jars (`xmlrpc`, `ObjCBridge`, `simmetrics`, `jacksum`, `appbundler`). |
 | `lib/native/<platform>/` | Native binaries already present for all supported platforms (MediaInfo, 7-Zip-JBinding, fpcalc, jnidispatch). |
-| `downloads/` | Offline snapshots of resources the app normally fetches from `app.filebot.net` (see below). |
+| `downloads/` | Offline snapshots of the data indexes and signed `fn:` script bundle. Embedded into the fat jar at build time; no runtime fetch. |
 | `build.xml` | Ant build. Default target is `fatjar`. |
 | `build.cmd`, `build.ps1` | One-command private build bootstrap (JDK detection, Ant/Ivy cache, resolve, slf4j fix, fatjar). |
 | `filebot.cmd` | Windows launcher for the built jar: JDK selection, Windows deployment profile, native paths, console logging. |
@@ -64,9 +64,9 @@ package.cmd
 - finds `FILEBOT_JDK` / `JAVA_HOME` / the local Zulu 11 FX path, and downloads Zulu 11 FX only if none is usable;
 - downloads and caches Ant 1.10.15 and Ivy 2.4.0 in `%LOCALAPPDATA%\filebot-build-tools` (override with `FILEBOT_TOOLS_DIR`);
 - runs `resolve` on first use and fixes the missing `slf4j-api.jar`;
-- runs `ant clean fatjar` with `-Djvm.version=11` and the local `downloads/` URLs.
+- runs `ant clean fatjar` with `-Djvm.version=11`; `build.xml` embeds `downloads/data` and `downloads/scripts` into the jar.
 
-Optional Ant targets can be passed as space-separated arguments, e.g. `build.cmd fatjar` or `build.cmd -projecthelp` (the `.cmd` forwards them via `FILEBOT_ANT_ARGS`). Output: `dist/FileBot_4.8.0.jar`.
+Optional Ant targets can be passed as space-separated arguments, e.g. `build.cmd fatjar` or `build.cmd -projecthelp` (the `.cmd` forwards them via `FILEBOT_ANT_ARGS`). Output: `dist/FileBot_4.8.0.jar` (~87 MB with the embedded data).
 
 The manual steps below are the same sequence, for reference or CI.
 
@@ -83,20 +83,17 @@ ant -lib C:\path\to\ivy-2.4.0.jar resolve
 curl -L -o lib\ivy\jar\slf4j-api.jar ^
   https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar
 
-:: 3. Build the fat jar, baking the offline downloads and targeting Java 11
-ant -lib C:\path\to\ivy-2.4.0.jar -Djvm.version=11 ^
-  -Durl.data=file:///C:/myprogs/filebot/downloads/data ^
-  -Dgithub.stable=file:///C:/myprogs/filebot/downloads/scripts/m1.jar.xz ^
-  fatjar
+:: 3. Build the fat jar (downloads are embedded by build.xml), targeting Java 11
+ant -lib C:\path\to\ivy-2.4.0.jar -Djvm.version=11 fatjar
 ```
 
-PowerShell note: quote every `-D` argument (`'-Djvm.version=11'`, `'-Durl.data=...'`). Unquoted, PowerShell 5.1 splits `-Djvm.version=11` into `-Djvm` and `.version=11`, and Ant fails with `Target "11" does not exist`. `cmd.exe` and Git Bash's `bin/ant` do not have this problem.
+PowerShell note: quote every `-D` argument (`'-Djvm.version=11'`). Unquoted, PowerShell 5.1 splits `-Djvm.version=11` into `-Djvm` and `.version=11`, and Ant fails with `Target "11" does not exist`. `cmd.exe` and Git Bash's `bin/ant` do not have this problem.
 
-Output: `dist/FileBot_4.8.0.jar` (~84 MB, entries stored uncompressed, `Main-Class: net.filebot.Main`). Copy/rename it to `filebot.jar` if desired.
+Output: `dist/FileBot_4.8.0.jar` (~87 MB, entries stored uncompressed, `Main-Class: net.filebot.Main`). Copy/rename it to `filebot.jar` if desired.
 
 Why `-Djvm.version=11`: `build.xml` compiles with `release="${jvm.version}"` (10 by default). Zulu 11 FX's javac does **not** expose `javafx.*` under `--release 10`; `--release 11` does. With a genuine JDK 10 that contains JavaFX, omit this override.
 
-Why the `-Durl.*` overrides: they are substituted into `ReleaseInfo.properties`/`Settings.properties` at build time (the `copy-replace` macro includes command-line `-D` user properties). Without them the jar points at dead `app.filebot.net` URLs and movie detection fails. The baked `file:///` paths are absolute; if the repository moves, rebuild or use the runtime overrides below.
+The data indexes and the signed `fn:` script bundle are copied from `downloads/` into the jar by the `build` target. To refresh them, update `downloads/` and rebuild; there are no runtime URL overrides anymore.
 
 ## Run the fat jar (verified)
 
@@ -116,10 +113,9 @@ It:
 - uses the Windows deployment profile (`-Dapplication.deployment=msi`: system L&F, `WinAppUtilities` tweaks, hides the unsupported `CLONE` action);
 - sets the MSI-style options (`useNativeShell=true`, NTFS extended attributes, system proxies);
 - points JNA / `java.library.path` at `lib\native\win32-x64` and sets `fpcalc`;
-- skips the update and Getting Started checks;
 - passes `JAVA_OPTS` and `FILEBOT_OPTS` through.
 
-The launcher also uses `downloads\data` next to itself (via runtime `-Durl.*` overrides) when present, so the generated `run\` is self-contained for data. `fn:` scripts still use the build-time script-bundle path baked into the jar; the planned embedding change removes that limitation. If you run `java -jar` directly instead, you lose the Windows L&F and the native-dependent features (MediaInfo/`{vf}`, 7-Zip extraction, AcoustID, xattr metadata). CLI identification/renaming/history still work; UI renaming on a non-JavaFX JDK can fail because the standard move/copy path uses `ProgressMonitor` (JavaFX), so use the `.cmd`/FX JDK for the GUI.
+The data indexes and signed `fn:` script bundle are embedded in the jar, so there are no `downloads\` files to carry around and no `app.filebot.net` calls. If you run `java -jar` directly instead, you lose the Windows L&F and the native-dependent features (MediaInfo/`{vf}`, 7-Zip extraction, AcoustID, xattr metadata). CLI identification/renaming/history still work; UI renaming on a non-JavaFX JDK can fail because the standard move/copy path uses `ProgressMonitor` (JavaFX), so use the `.cmd`/FX JDK for the GUI.
 
 ### Self-contained run folder
 
@@ -134,8 +130,6 @@ run\filebot.cmd
 run\filebot.jar
 run\filebot.cmd
 run\lib\native\win32-x64\*        (MediaInfo, 7-Zip-JBinding, jnidispatch, fpcalc)
-run\downloads\data\*              (used by filebot.cmd at runtime)
-run\downloads\scripts\*           (for the upcoming embedding change)
 ```
 
 Do **not** use `dist\` as the run folder — `build.cmd`/`ant clean` deletes it. `run/` is gitignored.
@@ -144,8 +138,6 @@ Do **not** use `dist\` as the run folder — `build.cmd`/`ant clean` deletes it.
 
 ```bat
 java ^
-  -Dapplication.update=skip ^
-  -Dapplication.help=skip ^
   -Djna.library.path=C:\myprogs\filebot\lib\native\win32-x64 ^
   -Djava.library.path=C:\myprogs\filebot\lib\native\win32-x64 ^
   -Dnet.filebot.AcoustID.fpcalc=C:\myprogs\filebot\lib\native\win32-x64\fpcalc.exe ^
@@ -154,34 +146,23 @@ java ^
 
 The `.cmd` adds `-Dapplication.deployment=msi`, `-DuseNativeShell=true`, `-DuseExtendedFileAttributes=true`, `-DuseCreationDate=false`, `-Djava.net.useSystemProxies=true`, `-Djna.nosys=true`, `-Djna.nounpack=true` and `-Djna.boot.library.path`.
 
-- `application.update=skip` prevents the GUI's "New updates available" modal (`app.filebot.net/update.xml` advertises FileBot 5.3.0; this build's revision is 5354).
-- `application.help=skip` skips the one-time JavaFX Getting Started page.
 - `jna.library.path` / `java.library.path` enable MediaInfo (`{vf}`, `-mediainfo`), 7-Zip-JBinding (`-extract`) and JNA itself. Without them, filename-based renaming still works but video metadata is empty and archive extraction fails.
 - `net.filebot.AcoustID.fpcalc` is only needed for music/AcoustID lookups.
 - **JAXB on Java 11+ (already handled):** the `fatjar` target in `build.xml` now bundles `jaxb-api`, `jaxb-impl` and `activation`, so rename history is written on Java 11+. Verified: a real `--action move` produced `history.xml` with no `NoClassDefFoundError`. If you build from an unmodified upstream `build.xml` (without those zipfilesets), a real rename still succeeds but the shutdown hook prints `NoClassDefFoundError: javax/xml/bind/JAXBContext` and does not write `history.xml`; either add the jars to the fat jar or run with `-cp "FileBot_4.8.0.jar;dist\lib\jaxb-api.jar;dist\lib\jaxb-impl.jar;dist\lib\activation.jar" net.filebot.Main ...`.
 
 - Default user data lives in `%USERPROFILE%\.filebot` (settings/cache/history). Portable mode: add `-Djava.util.prefs.PreferencesFactory=net.filebot.util.prefs.FilePreferencesFactory -Dnet.filebot.util.prefs.file=<path>\prefs.properties -Dapplication.dir=<path>`.
 
-Verified working with the built jar and with `filebot.cmd`: `-version`, `-help`, `-mediainfo`, `-rename --action test` and a real `--action move` (including `history.xml` via bundled JAXB and the Windows native-shell move), inline `g:` Groovy, `fn:sysinfo` from the local signed script bundle, TheMovieDB lookups, and local data indexes.
+Verified working with the built jar and with `filebot.cmd` after the URL/donation cleanup: `-version`, `-help`, `-mediainfo`, `-rename --action test` and a real `--action move` (including `history.xml` via bundled JAXB and the Windows native-shell move), inline `g:` Groovy, `fn:sysinfo` from the embedded signed bundle, TheMovieDB lookups, and the embedded data indexes. The rename and `fn:sysinfo` tests were run with the repository `downloads\` directory temporarily hidden.
 
-## Runtime URLs and the `downloads/` folder
+## Embedded data, scripts and external services
 
-| Property / feature | Default URL | Status 2026-11-24 | Local copy | Override |
-|---|---|---|---|---|
-| `url.movie-list`, `url.thetvdb-index`, `url.anidb-index`, `url.osdb-index`, `url.release-groups`, `url.query-blacklist`, `url.series-mappings` (all built from `url.data`) | `https://app.filebot.net/data/*.txt.xz` | **404 (dead)** | `downloads/data/*.txt.xz` (7 files) | Build-time `-Durl.data=file:///.../downloads/data`, or per-key runtime `-Durl.movie-list=file:///...` etc. |
-| `github.stable` (`fn:` scripts) | `https://app.filebot.net/scripts/m1.jar.xz` | **404 (dead)** | `downloads/scripts/m1.jar.xz` (signed bundle, 2018-03-16 r516) | **Build-time only**: `-Dgithub.stable=file:///.../m1.jar.xz` |
-| `update.url` | `https://app.filebot.net/update.xml` | **alive**; advertises 5.3.0/r11096 | — | Build-time only; or runtime `-Dapplication.update=skip` |
-| `github.master` (`dev:` scripts) | `https://raw.githubusercontent.com/filebot/scripts/master/` | alive | — | Build-time only |
-| `link.app.help` (first-run Getting Started) | `https://www.filebot.net/getting-started/embed.html` | alive | — | Runtime `-Dapplication.help=skip` |
-
-Important distinctions:
-
-- `url.data` itself is only used at **build time** to expand `@{url.data}` in `source/net/filebot/media/ReleaseInfo.properties`. It is **not** read at runtime.
-- At runtime, `ReleaseInfo.getProperty(name)` first checks `System.getProperty(name)`, so the seven individual `url.*` keys **can** be overridden per run with `-Durl.movie-list=...`; `file:` URLs work. This is useful if the jar was built without the local URL overrides.
-- `github.stable` and `update.url` are read with `Settings.getApplicationProperty` (ResourceBundle only), so there is **no** runtime `-D` override; set them at build time or edit the bundled properties inside the jar.
-- The data files are 2018 snapshots and are used for local name matching; detail/metadata requests still go to live services. TheMovieDB and OMDb responded successfully with the keys in `app.properties`; TheTVDB v1/v2 endpoints responded as well.
-- Cache/expiry: `url.refresh` is a system property; the cache lives under the application dir (`~/.filebot/cache` by default).
-- Confirmed failure mode with dead URLs: `-rename` prints `Resource not found: .../moviedb.txt.xz` and ends with "Failed to identify or process any files". The local overrides fix this entirely.
+- `downloads/data/*.txt.xz` (7 indexes) and `downloads/scripts/m1.jar.xz` are copied into the jar by the `build` target. `ReleaseInfo.resource()` reads classpath `net/filebot/media/data/<name>.txt.xz` through `XZInputStream`; there is no Ehcache/URL fetch.
+- `ScriptSource.GITHUB_STABLE` (legacy name used by the bundled `sysinfo` script) reads classpath `net/filebot/cli/m1.jar.xz` and verifies it with `repository.cer`. `g:` inline scripts and local `.groovy` files still work; the `dev:` (GitHub master) and remote `http(s)` script sources were removed.
+- No `app.filebot.net` update/data/script calls remain. The update dialog, Getting Started page and donation/App Store prompt were removed. `url.*`, `github.*`, `update.url`, `donate.url`, `link.mas`, `link.mws` and `link.app.help` were removed from `app.properties`/`Settings.properties`/`ReleaseInfo.properties`.
+- `Settings.getAppStoreLink()` still returns `null` because the bundled 2018 scripts check `Settings.appStoreLink`; the private build has no store link.
+- Live metadata services are still used for lookups: TheMovieDB, OMDb, TheTVDB, TVMaze, AniDB, OpenSubtitles, Fanart.tv and AcoustID. Their API keys remain in `app.properties`. The 2018 embedded indexes only supply local name matching.
+- User-initiated links remain in the Help menu / Format dialog; they open only when clicked.
+- One remaining automatic external call outside the metadata clients: `ImageMetadata.locate()` calls Google Maps geocoding when a format binding requests photo location (`{location}`). Remove it if you want zero incidental calls.
 
 ## Known build/runtime quirks
 
@@ -192,27 +173,27 @@ Important distinctions:
 5. **`resolve` rewrites `lib/native/**`** (tracked files). With the pinned versions the content is identical and `git status` stays clean; `lib/ivy/`, `build/`, `dist/`, `cache/` are gitignored.
 6. **`fatjar` uses `duplicate="fail"`.** Adding jars to it later can fail on duplicate entries (`module-info.class`, overlapping `META-INF/services`, etc.). Use explicit `include` patterns in any new `zipfileset`.
 7. **The fat jar includes JAXB** (`jaxb-api`, `jaxb-impl`, `activation`) and **omits native libraries**. JavaFX is not bundled; it must come from the JDK (Zulu FX) or be added separately.
-8. **Donation/App Store prompt is already in this 4.8.0 source** (`source/net/filebot/ui/SupportDialog.java`). It appears on GUI close after rename thresholds. The aggressive branch compares `os.name` exactly to `"Windows 10"`/`"Mac OS X"`, so on Windows 11 it falls back to the base thresholds (2000 × 2ⁿ renames in a session, or 2000 × 5ⁿ total, where n = number of times the prompt has already been answered). The update dialog is separate (see `application.update`).
+8. **Prompts/update removed:** `SupportDialog` and `GettingStartedStage` were deleted, and `Main` no longer checks for updates or shows Getting Started. Legacy bundled scripts still reference `ScriptSource.GITHUB_STABLE` and `Settings.appStoreLink`; both names are preserved (the latter returns `null`).
 9. **Build revision** comes from `git rev-list --count master` (5354 in this checkout). It is baked into `Settings.properties` and stored in the jar manifest.
 10. **`test/` is not built** by the Ant file; there is no `test`/`junit` target.
+11. **Embedded indexes are frozen** at the snapshots in `downloads/`; update those files and rebuild to refresh them. Live APIs still supply details for newer media.
 
 ## Key source files for runtime behaviour
 
 | File | What it controls |
 |---|---|
-| `source/net/filebot/Main.java` | Startup; update check, Getting Started, JavaFX init, SecurityManager. |
-| `source/net/filebot/Settings.properties` | `github.stable`, `update.url`, API keys, links — `@{...}` replaced at build time. |
-| `source/net/filebot/media/ReleaseInfo.properties` | Data index URLs (`@{url.data}/...`), release patterns. |
-| `source/net/filebot/media/ReleaseInfo.java` | `getProperty()` runtime `-D` overrides; XZ data loading. |
-| `source/net/filebot/cli/ScriptSource.java` | `fn:`/`dev:`/`g:` script sources; signature via `repository.cer`. |
-| `source/net/filebot/ui/SupportDialog.java` | Donation / App Store review prompt. |
+| `source/net/filebot/Main.java` | Startup; JavaFX init, SecurityManager, window setup. No update/Getting Started checks. |
+| `source/net/filebot/Settings.properties` | API keys and user-clicked help links — `@{...}` replaced at build time. |
+| `source/net/filebot/media/ReleaseInfo.properties` | Release patterns only; the data indexes are embedded resources. |
+| `source/net/filebot/media/ReleaseInfo.java` | Classpath XZ data loading (`net/filebot/media/data/`); pattern property overrides. |
+| `source/net/filebot/cli/ScriptSource.java` | Embedded signed `fn:` bundle (`m1.jar.xz`), `g:` inline, local `.groovy`; signature via `repository.cer`. |
 | `source/net/filebot/History.java` | JAXB history export (JAXB is bundled in the fat jar). |
+| `build.xml` (`build` target) | Embeds `downloads/data` and `downloads/scripts/m1.jar.xz` into the jar. |
 
 ## Working agreements
 
 - No Maven/Gradle; keep the Ant + Ivy build. `build.cmd` builds; `package.cmd` assembles `run\`; `run\filebot.cmd` runs the result.
 - Build outputs (`build/`, `dist/`, `run/`, `cache/`, `lib/ivy/`) are disposable and gitignored; do not commit them.
 - Ant/Ivy downloads are cached outside the repo in `%LOCALAPPDATA%\filebot-build-tools` (`FILEBOT_TOOLS_DIR` overrides).
-- `downloads/` contains the offline snapshots used by private builds; keep them in sync if URLs change.
-- Prefer build-time `-D` overrides over editing `app.properties` when experimenting with URLs.
-- Any source-level change (disabling prompts, adding bindings, patching URLs) needs explicit user approval.
+- `downloads/` contains the build-time source for the embedded indexes and signed script bundle; update those files and rebuild to refresh them.
+- Any source-level change (removing features, adding bindings, changing prompts) needs explicit user approval.

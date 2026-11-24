@@ -135,35 +135,11 @@ public final class Settings {
 		return Runtime.getRuntime().availableProcessors();
 	}
 
-	public static String getAppStoreName() {
-		if (isMacApp())
-			return "Mac App Store";
-		if (isWindowsApp())
-			return "Windows Store";
-		if (isUbuntuApp())
-			return "Ubuntu Software Center";
-
-		return null;
-	}
-
+	/**
+	 * Legacy API used by bundled scripts ({@code Settings.appStoreLink}); the private build has no app store.
+	 */
 	public static String getAppStoreLink() {
-		if (isMacApp())
-			return getApplicationProperty("link.mas");
-		if (isWindowsApp())
-			return getApplicationProperty("link.mws");
-		if (isUbuntuApp())
-			return null;
-
 		return null;
-	}
-
-	public static String getDonateURL() {
-		return getApplicationProperty("donate.url") + "?src=" + getApplicationDeployment();
-	}
-
-	public static String getEmbeddedHelpURL() {
-		// add #hash so we can dynamically adjust the slides for the various platforms via JavaScript
-		return getApplicationProperty("link.app.help") + '#' + getApplicationDeployment();
 	}
 
 	public static String getApplicationIdentifier() {

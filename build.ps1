@@ -124,10 +124,6 @@ if (-not (Test-Path $Slf4jJar)) {
 }
 
 # -------------------------------------------------------------- build ----
-$RepoUri  = ([uri]($RepoRoot + '\')).AbsoluteUri.TrimEnd('/')
-$DataUri  = "$RepoUri/downloads/data"
-$M1Uri    = "$RepoUri/downloads/scripts/m1.jar.xz"
-
 $AntArgs = @()
 if ($env:FILEBOT_ANT_ARGS) {
     $AntArgs = @($env:FILEBOT_ANT_ARGS -split '\s+' | Where-Object { $_ })
@@ -137,7 +133,7 @@ if ($AntArgs.Count -eq 0) { $AntArgs = @('clean', 'fatjar') }
 Write-Step "Running ant $($AntArgs -join ' ')"
 Push-Location $RepoRoot
 try {
-    & $AntBat -lib $IvyJar '-Djvm.version=11' "-Durl.data=$DataUri" "-Dgithub.stable=$M1Uri" @AntArgs
+    & $AntBat -lib $IvyJar '-Djvm.version=11' @AntArgs
     $code = $LASTEXITCODE
 } finally {
     Pop-Location

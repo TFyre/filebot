@@ -15,12 +15,13 @@ import static net.filebot.util.StringUtilities.*;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.net.URL;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.text.Collator;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -41,11 +42,8 @@ import java.util.stream.Stream;
 import org.tukaani.xz.XZInputStream;
 
 import net.filebot.ApplicationFolder;
-import net.filebot.Cache;
-import net.filebot.CacheType;
 import net.filebot.Resource;
 import net.filebot.util.FileUtilities.RegexFileFilter;
-import net.filebot.util.SystemProperty;
 import net.filebot.web.Movie;
 import net.filebot.web.SearchResult;
 import net.filebot.web.SubtitleSearchResult;
@@ -422,7 +420,7 @@ public class ReleaseInfo {
 		return PIPE.split(tags);
 	}
 
-	private final Resource<Map<Pattern, String>> seriesMappings = resource("url.series-mappings", Cache.ONE_WEEK, Function.identity(), String[]::new).transform(lines -> {
+	private final Resource<Map<Pattern, String>> seriesMappings = resource("series-mappings.txt.xz", Function.identity(), String[]::new).transform(lines -> {
 		Map<Pattern, String> map = new LinkedHashMap<Pattern, String>(lines.length);
 		stream(lines).map(s -> TAB.split(s, 2)).filter(v -> v.length == 2).forEach(v -> {
 			Pattern pattern = compile("(?<!\\p{Alnum})(" + v[0] + ")(?!\\p{Alnum})", CASE_INSENSITIVE);
@@ -431,16 +429,14 @@ public class ReleaseInfo {
 		return unmodifiableMap(map);
 	}).memoize();
 
-	private final Resource<String[]> releaseGroup = lines("url.release-groups", Cache.ONE_WEEK);
-	private final Resource<String[]> queryBlacklist = lines("url.query-blacklist", Cache.ONE_WEEK);
+	private final Resource<String[]> releaseGroup = lines("release-groups.txt.xz");
+	private final Resource<String[]> queryBlacklist = lines("query-blacklist.txt.xz");
 
-	private final Resource<SearchResult[]> tvdbIndex = tsv("url.thetvdb-index", Cache.ONE_WEEK, this::parseSeries, SearchResult[]::new);
-	private final Resource<SearchResult[]> anidbIndex = tsv("url.anidb-index", Cache.ONE_WEEK, this::parseSeries, SearchResult[]::new);
+	private final Resource<SearchResult[]> tvdbIndex = tsv("thetvdb.txt.xz", this::parseSeries, SearchResult[]::new);
+	private final Resource<SearchResult[]> anidbIndex = tsv("anidb.txt.xz", this::parseSeries, SearchResult[]::new);
 
-	private final Resource<Movie[]> movieIndex = tsv("url.movie-list", Cache.ONE_MONTH, this::parseMovie, Movie[]::new);
-	private final Resource<SubtitleSearchResult[]> osdbIndex = tsv("url.osdb-index", Cache.ONE_MONTH, this::parseSubtitle, SubtitleSearchResult[]::new);
-
-	private final SystemProperty<Duration> refreshDuration = SystemProperty.of("url.refresh", Duration::parse);
+	private final Resource<Movie[]> movieIndex = tsv("moviedb.txt.xz", this::parseMovie, Movie[]::new);
+	private final Resource<SubtitleSearchResult[]> osdbIndex = tsv("osdb.txt.xz", this::parseSubtitle, SubtitleSearchResult[]::new);
 
 	private SearchResult parseSeries(String[] v) {
 		int id = parseInt(v[0]);
@@ -468,18 +464,17 @@ public class ReleaseInfo {
 		return new SubtitleSearchResult(name, aliasNames, year, imdbId, -1, Locale.ENGLISH, SubtitleSearchResult.Kind.forName(kind), score);
 	}
 
-	protected Resource<String[]> lines(String name, Duration expirationTime) {
-		return resource(name, expirationTime, Function.identity(), String[]::new).memoize();
+	protected Resource<String[]> lines(String name) {
+		return resource(name, Function.identity(), String[]::new).memoize();
 	}
 
-	protected <A> Resource<A[]> tsv(String name, Duration expirationTime, Function<String[], A> parse, IntFunction<A[]> generator) {
-		return resource(name, expirationTime, s -> parse.apply(TAB.split(s)), generator).memoize();
+	protected <A> Resource<A[]> tsv(String name, Function<String[], A> parse, IntFunction<A[]> generator) {
+		return resource(name, s -> parse.apply(TAB.split(s)), generator).memoize();
 	}
 
-	protected <A> Resource<A[]> resource(String name, Duration expirationTime, Function<String, A> parse, IntFunction<A[]> generator) {
+	protected <A> Resource<A[]> resource(String name, Function<String, A> parse, IntFunction<A[]> generator) {
 		return () -> {
-			Cache cache = Cache.getCache("data", CacheType.Persistent);
-			byte[] bytes = cache.bytes(name, n -> new URL(getProperty(n)), XZInputStream::new).expire(refreshDuration.optional().orElse(expirationTime)).get();
+			byte[] bytes = readResource(name);
 
 			// all data files are UTF-8 encoded XZ compressed text files
 			Stream<String> lines = NEWLINE.splitAsStream(UTF_8.decode(ByteBuffer.wrap(bytes)));
@@ -488,8 +483,19 @@ public class ReleaseInfo {
 		};
 	}
 
+	protected byte[] readResource(String name) throws IOException {
+		try (InputStream in = ReleaseInfo.class.getResourceAsStream("data/" + name)) {
+			if (in == null) {
+				throw new FileNotFoundException("Resource not found: data/" + name);
+			}
+			try (XZInputStream xz = new XZInputStream(in)) {
+				return xz.readAllBytes();
+			}
+		}
+	}
+
 	protected String getProperty(String name) {
-		// override resource locations via Java System properties
+		// allow pattern overrides via Java System properties
 		return System.getProperty(name, getBundle(ReleaseInfo.class.getName()).getString(name));
 	}
 

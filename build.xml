@@ -827,6 +827,14 @@
 				<exclude name="**/*.properties" />
 			</fileset>
 		</copy>
+
+		<!-- bundle offline data indexes and the signed script bundle -->
+		<copy todir="${dir.build}/net/filebot/media/data">
+			<fileset dir="${basedir}/downloads/data" includes="*.txt.xz" />
+		</copy>
+		<copy todir="${dir.build}/net/filebot/cli">
+			<fileset dir="${basedir}/downloads/scripts" includes="m1.jar.xz" />
+		</copy>
 	</target>
 
 
