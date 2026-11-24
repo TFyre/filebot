@@ -285,6 +285,24 @@
 				<include name="org/slf4j/**" />
 			</zipfileset>
 
+			<!-- include JAXB runtime (removed from the JDK in Java 11) -->
+			<zipfileset src="${dir.dist}/lib/jaxb-api.jar">
+				<include name="javax/xml/bind/**" />
+				<exclude name="module-info.class" />
+				<exclude name="META-INF/versions/**" />
+			</zipfileset>
+			<zipfileset src="${dir.dist}/lib/jaxb-impl.jar">
+				<include name="com/sun/istack/**" />
+				<include name="com/sun/xml/bind/**" />
+				<include name="META-INF/services/javax.xml.bind.JAXBContext" />
+			</zipfileset>
+			<zipfileset src="${dir.dist}/lib/activation.jar">
+				<include name="javax/activation/**" />
+				<include name="com/sun/activation/**" />
+				<include name="META-INF/mailcap.default" />
+				<include name="META-INF/mimetypes.default" />
+			</zipfileset>
+
 			<!-- include Groovy libraries -->
 			<zipfileset src="${dir.dist}/lib/groovy-all.jar">
 				<include name="groovy*/**" />

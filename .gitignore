@@ -2,6 +2,7 @@ bin/
 build/
 build-data/
 dist/
+release/
 cache/
 lib/ivy/
 
@@ -17,3 +18,7 @@ lib/ivy/
 *.pvk
 
 .DS_Store
+
+# private build entry points
+!/build.cmd
+!/build.ps1
