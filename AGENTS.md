@@ -163,6 +163,7 @@ Verified working with the built jar and with `filebot.cmd` after the URL/donatio
 - Live metadata services are still used for lookups: TheMovieDB, OMDb, TheTVDB, TVMaze, AniDB, OpenSubtitles, Fanart.tv and AcoustID. Their API keys remain in `app.properties`. The 2018 embedded indexes only supply local name matching.
 - User-initiated links remain in the Help menu / Format dialog; they open only when clicked.
 - One remaining automatic external call outside the metadata clients: `ImageMetadata.locate()` calls Google Maps geocoding when a format binding requests photo location (`{location}`). Remove it if you want zero incidental calls.
+- The embedded 2018 scripts can still make their own network calls when explicitly run: `fn:sysinfo` checks `app.filebot.net/update.xml`, and `fn:amc` references `app.filebot.net/icon.png` for notifications. The bundle is signed, so changing those requires re-signing it (or replacing `repository.cer`); the GUI drag-and-rename workflow does not run these scripts.
 
 ## Known build/runtime quirks
 
