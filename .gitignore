@@ -3,6 +3,7 @@ build/
 build-data/
 dist/
 release/
+run/
 cache/
 lib/ivy/
 
@@ -22,3 +23,5 @@ lib/ivy/
 # private build entry points
 !/build.cmd
 !/build.ps1
+!/filebot.cmd
+!/package.cmd

@@ -18,6 +18,9 @@
 | `downloads/` | Offline snapshots of resources the app normally fetches from `app.filebot.net` (see below). |
 | `build.xml` | Ant build. Default target is `fatjar`. |
 | `build.cmd`, `build.ps1` | One-command private build bootstrap (JDK detection, Ant/Ivy cache, resolve, slf4j fix, fatjar). |
+| `filebot.cmd` | Windows launcher for the built jar: JDK selection, Windows deployment profile, native paths, console logging. |
+| `package.cmd` | Assembles a self-contained `run\` folder (jar, launcher, native libs, downloads). |
+| `run/` | Generated run folder (gitignored); run it with `run\filebot.cmd`. |
 | `ivy.xml` | Dependency versions; resolved with Apache Ivy. |
 | `app.properties` | Application version, main class, API keys, service URLs, target JVM. |
 | `build-data/` | Maintenance Groovy scripts run *by FileBot itself* (`filebot -script ...`). Not part of the build. |
@@ -51,7 +54,10 @@ Java 10 note: Oracle JDK 10.0.2 (with JavaFX + JAXB) is only behind an Oracle lo
 
 ```bat
 build.cmd
+package.cmd
 ```
+
+`package.cmd` assembles `run\` from `dist\`, `lib\native\win32-x64`, `downloads\` and `filebot.cmd`; run it with `run\filebot.cmd`. `dist\` itself is not a good run folder because `build.cmd`/`ant clean` deletes it.
 
 [build.ps1](build.ps1) is the actual bootstrap (the `.cmd` is a thin shim). It:
 
@@ -94,6 +100,48 @@ Why the `-Durl.*` overrides: they are substituted into `ReleaseInfo.properties`/
 
 ## Run the fat jar (verified)
 
+### Daily launcher: `filebot.cmd`
+
+`filebot.cmd` is the intended Windows entry point. It keeps console logging visible and forwards all arguments, including files dragged onto the `.cmd`:
+
+```bat
+filebot.cmd                 :: start the GUI
+filebot.cmd -version
+filebot.cmd -rename ...     :: CLI
+```
+
+It:
+
+- picks `FILEBOT_JAVA`, a JavaFX-enabled `JAVA_HOME`, a `jdk\` folder next to the script, or the local Zulu 11 FX path (falling back to `java` on `PATH`);
+- uses the Windows deployment profile (`-Dapplication.deployment=msi`: system L&F, `WinAppUtilities` tweaks, hides the unsupported `CLONE` action);
+- sets the MSI-style options (`useNativeShell=true`, NTFS extended attributes, system proxies);
+- points JNA / `java.library.path` at `lib\native\win32-x64` and sets `fpcalc`;
+- skips the update and Getting Started checks;
+- passes `JAVA_OPTS` and `FILEBOT_OPTS` through.
+
+The launcher also uses `downloads\data` next to itself (via runtime `-Durl.*` overrides) when present, so the generated `run\` is self-contained for data. `fn:` scripts still use the build-time script-bundle path baked into the jar; the planned embedding change removes that limitation. If you run `java -jar` directly instead, you lose the Windows L&F and the native-dependent features (MediaInfo/`{vf}`, 7-Zip extraction, AcoustID, xattr metadata). CLI identification/renaming/history still work; UI renaming on a non-JavaFX JDK can fail because the standard move/copy path uses `ProgressMonitor` (JavaFX), so use the `.cmd`/FX JDK for the GUI.
+
+### Self-contained run folder
+
+```bat
+package.cmd
+run\filebot.cmd
+```
+
+`package.cmd` creates (and recreates) `run\`:
+
+```text
+run\filebot.jar
+run\filebot.cmd
+run\lib\native\win32-x64\*        (MediaInfo, 7-Zip-JBinding, jnidispatch, fpcalc)
+run\downloads\data\*              (used by filebot.cmd at runtime)
+run\downloads\scripts\*           (for the upcoming embedding change)
+```
+
+Do **not** use `dist\` as the run folder — `build.cmd`/`ant clean` deletes it. `run/` is gitignored.
+
+### Equivalent manual command (verified)
+
 ```bat
 java ^
   -Dapplication.update=skip ^
@@ -104,6 +152,8 @@ java ^
   -jar FileBot_4.8.0.jar
 ```
 
+The `.cmd` adds `-Dapplication.deployment=msi`, `-DuseNativeShell=true`, `-DuseExtendedFileAttributes=true`, `-DuseCreationDate=false`, `-Djava.net.useSystemProxies=true`, `-Djna.nosys=true`, `-Djna.nounpack=true` and `-Djna.boot.library.path`.
+
 - `application.update=skip` prevents the GUI's "New updates available" modal (`app.filebot.net/update.xml` advertises FileBot 5.3.0; this build's revision is 5354).
 - `application.help=skip` skips the one-time JavaFX Getting Started page.
 - `jna.library.path` / `java.library.path` enable MediaInfo (`{vf}`, `-mediainfo`), 7-Zip-JBinding (`-extract`) and JNA itself. Without them, filename-based renaming still works but video metadata is empty and archive extraction fails.
@@ -112,7 +162,7 @@ java ^
 
 - Default user data lives in `%USERPROFILE%\.filebot` (settings/cache/history). Portable mode: add `-Djava.util.prefs.PreferencesFactory=net.filebot.util.prefs.FilePreferencesFactory -Dnet.filebot.util.prefs.file=<path>\prefs.properties -Dapplication.dir=<path>`.
 
-Verified working with the built jar: `-version`, `-help`, `-mediainfo`, `-rename --action test` and a real `--action move` (including `history.xml` via bundled JAXB), inline `g:` Groovy, `fn:sysinfo` from the local signed script bundle, TheMovieDB lookups, and local data indexes.
+Verified working with the built jar and with `filebot.cmd`: `-version`, `-help`, `-mediainfo`, `-rename --action test` and a real `--action move` (including `history.xml` via bundled JAXB and the Windows native-shell move), inline `g:` Groovy, `fn:sysinfo` from the local signed script bundle, TheMovieDB lookups, and local data indexes.
 
 ## Runtime URLs and the `downloads/` folder
 
@@ -160,8 +210,8 @@ Important distinctions:
 
 ## Working agreements
 
-- No Maven/Gradle; keep the Ant + Ivy build. `build.cmd` is the preferred entry point.
-- Build outputs (`build/`, `dist/`, `cache/`, `lib/ivy/`) are disposable and gitignored; do not commit them.
+- No Maven/Gradle; keep the Ant + Ivy build. `build.cmd` builds; `package.cmd` assembles `run\`; `run\filebot.cmd` runs the result.
+- Build outputs (`build/`, `dist/`, `run/`, `cache/`, `lib/ivy/`) are disposable and gitignored; do not commit them.
 - Ant/Ivy downloads are cached outside the repo in `%LOCALAPPDATA%\filebot-build-tools` (`FILEBOT_TOOLS_DIR` overrides).
 - `downloads/` contains the offline snapshots used by private builds; keep them in sync if URLs change.
 - Prefer build-time `-D` overrides over editing `app.properties` when experimenting with URLs.
