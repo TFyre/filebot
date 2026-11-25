@@ -30,8 +30,8 @@
 
 | Tool | Requirement | Notes |
 |---|---|---|
-| **Java (build)** | JDK **10** with JavaFX is what the project targets (`jvm.version: 10`, `--release 10`). In practice use **Zulu 11 FX** and build with `-Djvm.version=11`. | Four source files import `javafx.*`, so javac needs JavaFX on the compile classpath/module path. A plain OpenJDK 10 or 11 (no FX) **cannot compile** the source. Verified with Zulu 11 FX **11.0.33** and **11.0.33.1** (clean rebuild of all 395 files). |
-| **Java (runtime)** | Java **11+**. Verified on Zulu 11 FX (full features) and Zulu 17 (Swing/CLI; JavaFX features unavailable). | Java 11 removed the JAXB runtime (`javax.xml.bind`) from the JDK. The current `build.xml` bundles JAXB into the fat jar, so history export works; the stock/upstream fat jar omits it and fails on shutdown (see Runtime). Java 21+ additionally has no usable `SecurityManager` (exception is caught; log noise, sandbox disabled). |
+| **Java (build)** | **Java 21** (`jvm.version: 21`, `--release 21`). Use **Zulu 21 FX** so JavaFX is available to javac. | Four source files import `javafx.*`, so javac needs JavaFX. Verified with Zulu 21 FX **21.0.13.1** (clean rebuild of all 393 source files). |
+| **Java (runtime)** | Java **21+**. Verified on Zulu 21 FX (full features) and plain Zulu 21 (CLI; no JavaFX features). | JAXB is bundled in the fat jar. `initializeSecurityManager()` was removed because JDK 21 rejects it; format expressions run without a SecurityManager sandbox. JavaFX features require an FX-enabled JDK (Zulu FX); plain JDK 21 works for CLI and filename-based renaming. |
 | **Apache Ant** | **1.9.1+** minimum. Verified **1.10.15**. | The build uses namespaced `if:`/`unless:` attributes (Ant 1.9.1+) and `if:true`. Ant is **not installed** on this machine as of 2026-11-24. |
 | **Apache Ivy** | Any 2.4+ / 2.5+. Verified **2.4.0** and **2.5.3**. | Must be on Ant's classpath (`ant -lib ivy.jar`). Ivy resolves all dependencies from Maven Central. |
 | **Maven** | **Not used.** There is no `pom.xml`; do not add Maven/Gradle. | Maven 3.9.16 is installed but irrelevant. |
@@ -41,14 +41,14 @@
 
 Known good downloads for this machine:
 
-- Zulu 11 FX JDK: `https://cdn.azul.com/zulu/bin/zulu11.92.201-ca-fx-jdk11.0.33.1-win_x64.zip`
+- Zulu 21 FX JDK: `https://cdn.azul.com/zulu/bin/zulu21.54.201-ca-fx-jdk21.0.13.1-win_x64.zip`
 - Apache Ant 1.10.15: `https://archive.apache.org/dist/ant/binaries/apache-ant-1.10.15-bin.zip`
 - Apache Ivy 2.4.0: `https://repo1.maven.org/maven2/org/apache/ivy/ivy/2.4.0/ivy-2.4.0.jar`
 
-Local verified JDK (ZIP extracted, **not** installed; set `JAVA_HOME` per build shell):
-`C:\Program Files\Zulu\zulu11.92.113-ca-fx-jdk11.0.33-win_x64` (Zulu 11.0.33, contains `jmods\javafx.*.jmod`). The existing `C:\Program Files\Zulu\zulu-11` is the plain JDK and has **no** JavaFX.
+Local verified JDK (downloaded/extracted by `build.ps1`, not installed):
+`%LOCALAPPDATA%\filebot-build-tools\zulu21fx\zulu21.54.201-ca-fx-jdk21.0.13.1-win_x64` (Zulu 21.0.13.1, contains `jmods\javafx.*.jmod`). `build.ps1` downloads it if missing; `filebot.cmd` searches `JAVA_HOME`, `jdk\` next to the launcher, that cache, and `C:\Program Files\Zulu\zulu21*-ca-fx-jdk*`.
 
-Java 10 note: Oracle JDK 10.0.2 (with JavaFX + JAXB) is only behind an Oracle login; Zulu 10 does **not** include JavaFX, BellSoft's Liberica 10 "Full" (which did) is no longer offered through their API, and the OpenJFX 10 SDK is no longer publicly downloadable. Hence the Zulu 11 FX + `-Djvm.version=11` recipe.
+JDK 21 note: the original project targeted Java 10, but JDK 10 with JavaFX is no longer readily redistributable. The build now targets **21** with Zulu 21 FX; `jre.version`/`jvm.version` are 21 and `--illegal-access=permit` was removed from the default options. `Main.initializeSecurityManager()` was removed because JDK 21 rejects `Policy`/`SecurityManager`; format expressions are no longer sandboxed (acceptable for private use).
 
 ## One-command build (verified 2026-11-24)
 
@@ -61,10 +61,10 @@ package.cmd
 
 [build.ps1](build.ps1) is the actual bootstrap (the `.cmd` is a thin shim). It:
 
-- finds `FILEBOT_JDK` / `JAVA_HOME` / the local Zulu 11 FX path, and downloads Zulu 11 FX only if none is usable;
+- finds a Java 21 FX JDK (`FILEBOT_JDK`, `JAVA_HOME`, the `zulu21fx` cache, or `C:\Program Files\Zulu\zulu21*-ca-fx-jdk*`), and downloads Zulu 21 FX only if none is usable;
 - downloads and caches Ant 1.10.15 and Ivy 2.4.0 in `%LOCALAPPDATA%\filebot-build-tools` (override with `FILEBOT_TOOLS_DIR`);
 - runs `resolve` on first use and fixes the missing `slf4j-api.jar`;
-- runs `ant clean fatjar` with `-Djvm.version=11`; `build.xml` embeds `downloads/data` and `downloads/scripts` into the jar.
+- runs `ant clean fatjar`; `build.xml` embeds `downloads/data` and `downloads/scripts` into the jar.
 
 Optional Ant targets can be passed as space-separated arguments, e.g. `build.cmd fatjar` or `build.cmd -projecthelp` (the `.cmd` forwards them via `FILEBOT_ANT_ARGS`). Output: `dist/FileBot_4.8.0.jar` (~87 MB with the embedded data).
 
@@ -83,15 +83,15 @@ ant -lib C:\path\to\ivy-2.4.0.jar resolve
 curl -L -o lib\ivy\jar\slf4j-api.jar ^
   https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar
 
-:: 3. Build the fat jar (downloads are embedded by build.xml), targeting Java 11
-ant -lib C:\path\to\ivy-2.4.0.jar -Djvm.version=11 fatjar
+:: 3. Build the fat jar (downloads are embedded by build.xml), targeting Java 21
+ant -lib C:\path\to\ivy-2.4.0.jar fatjar
 ```
 
-PowerShell note: quote every `-D` argument (`'-Djvm.version=11'`). Unquoted, PowerShell 5.1 splits `-Djvm.version=11` into `-Djvm` and `.version=11`, and Ant fails with `Target "11" does not exist`. `cmd.exe` and Git Bash's `bin/ant` do not have this problem.
+PowerShell note: if you pass extra `-D` overrides, quote them (e.g. `'-Dkey=value'`); unquoted `-D` arguments containing dots can be split by PowerShell 5.1. `cmd.exe` and Git Bash's `bin/ant` do not have this problem.
 
 Output: `dist/FileBot_4.8.0.jar` (~87 MB, entries stored uncompressed, `Main-Class: net.filebot.Main`). Copy/rename it to `filebot.jar` if desired.
 
-Why `-Djvm.version=11`: `build.xml` compiles with `release="${jvm.version}"` (10 by default). Zulu 11 FX's javac does **not** expose `javafx.*` under `--release 10`; `--release 11` does. With a genuine JDK 10 that contains JavaFX, omit this override.
+The Java target comes from `app.properties` (`jvm.version: 21` → `--release 21`). Use a **JDK 21 FX** so javac can see JavaFX; Zulu 21 FX worked. Plain JDK 21 cannot compile the four JavaFX files.
 
 The data indexes and the signed `fn:` script bundle are copied from `downloads/` into the jar by the `build` target. To refresh them, update `downloads/` and rebuild; there are no runtime URL overrides anymore.
 
@@ -109,7 +109,7 @@ filebot.cmd -rename ...     :: CLI
 
 It:
 
-- picks `FILEBOT_JAVA`, a JavaFX-enabled `JAVA_HOME`, a `jdk\` folder next to the script, or the local Zulu 11 FX path (falling back to `java` on `PATH`);
+- picks `FILEBOT_JAVA`, a Java 21 FX `JAVA_HOME`, a `jdk\` folder next to the script, the `zulu21fx` cache, or `C:\Program Files\Zulu\zulu21*-ca-fx-jdk*` (falling back to `java` on `PATH`);
 - uses the Windows deployment profile (`-Dapplication.deployment=msi`: system L&F, `WinAppUtilities` tweaks, hides the unsupported `CLONE` action);
 - sets the MSI-style options (`useNativeShell=true`, NTFS extended attributes, system proxies);
 - points JNA / `java.library.path` at `lib\native\win32-x64` and sets `fpcalc`;
@@ -152,7 +152,7 @@ The `.cmd` adds `-Dapplication.deployment=msi`, `-DuseNativeShell=true`, `-DuseE
 
 - Default user data lives in `%USERPROFILE%\.filebot` (settings/cache/history). Portable mode: add `-Djava.util.prefs.PreferencesFactory=net.filebot.util.prefs.FilePreferencesFactory -Dnet.filebot.util.prefs.file=<path>\prefs.properties -Dapplication.dir=<path>`.
 
-Verified working with the built jar and with `filebot.cmd` after the URL/donation cleanup: `-version`, `-help`, `-mediainfo`, `-rename --action test` and a real `--action move` (including `history.xml` via bundled JAXB and the Windows native-shell move), inline `g:` Groovy, `fn:sysinfo` from the embedded signed bundle, TheMovieDB lookups, and the embedded data indexes. The rename and `fn:sysinfo` tests were run with the repository `downloads\` directory temporarily hidden.
+Verified on JDK 21 (Zulu 21 FX and plain Zulu 21) with the built jar and `filebot.cmd`: `-version` (21.0.13.1), `-help`, `-mediainfo`, `-rename --action test` and a real `--action move` (including `history.xml` via bundled JAXB and the Windows native-shell move), inline `g:` Groovy, `fn:sysinfo` from the embedded signed bundle (Groovy 2.4.13), TheMovieDB lookups, and the embedded data indexes. GUI startup on JavaFX 21 and the old ControlsFX `ProgressDialog` were also checked. The rename and `fn:sysinfo` tests were run with the repository `downloads\` directory temporarily hidden.
 
 ## Embedded data, scripts and external services
 
@@ -178,12 +178,14 @@ Verified working with the built jar and with `filebot.cmd` after the URL/donatio
 9. **Build revision** comes from `git rev-list --count master` (5354 in this checkout). It is baked into `Settings.properties` and stored in the jar manifest.
 10. **`test/` is not built** by the Ant file; there is no `test`/`junit` target.
 11. **Embedded indexes are frozen** at the snapshots in `downloads/`; update those files and rebuild to refresh them. Live APIs still supply details for newer media.
+12. **JDK 21 compile warnings are expected:** `AccessController`, `AccessControlContext`, `SecurityManager` and `Thread.stop()` are deprecated for removal. `SecureCompiledScript`/`PrivilegedInvocation` still use `AccessController`, but without a global SecurityManager it is effectively a no-op. The build succeeds with warnings.
+13. **JDK 21 GUI verified:** JavaFX 21 loads, and the old ControlsFX 8.40.13 `ProgressDialog` still constructs successfully. `filebot.cmd` does not pass the `--add-opens` list from `app.properties`; the tested CLI/GUI paths did not need it.
 
 ## Key source files for runtime behaviour
 
 | File | What it controls |
 |---|---|
-| `source/net/filebot/Main.java` | Startup; JavaFX init, SecurityManager, window setup. No update/Getting Started checks. |
+| `source/net/filebot/Main.java` | Startup; JavaFX init, window setup. No update/Getting Started checks, no SecurityManager. |
 | `source/net/filebot/Settings.properties` | API keys and user-clicked help links — `@{...}` replaced at build time. |
 | `source/net/filebot/media/ReleaseInfo.properties` | Release patterns only; the data indexes are embedded resources. |
 | `source/net/filebot/media/ReleaseInfo.java` | Classpath XZ data loading (`net/filebot/media/data/`); pattern property overrides. |

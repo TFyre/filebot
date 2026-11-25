@@ -19,12 +19,24 @@ rem ---------------------------------------------------------------------------
 set "APP_ROOT=%~dp0"
 set "NATIVE=%APP_ROOT%lib\native\win32-x64"
 
-rem --- pick a JavaFX-enabled JDK, so MediaInfo/JavaFX features keep working
+rem --- pick a Java 21 FX-enabled JDK, so MediaInfo/JavaFX features keep working
 set "JAVA_EXE=java"
 if defined FILEBOT_JAVA if exist "%FILEBOT_JAVA%" set "JAVA_EXE=%FILEBOT_JAVA%"
-if "%JAVA_EXE%"=="java" if defined JAVA_HOME if exist "%JAVA_HOME%\jmods\javafx.controls.jmod" set "JAVA_EXE=%JAVA_HOME%\bin\java.exe"
-if "%JAVA_EXE%"=="java" if exist "%APP_ROOT%jdk\bin\java.exe" if exist "%APP_ROOT%jdk\jmods\javafx.controls.jmod" set "JAVA_EXE=%APP_ROOT%jdk\bin\java.exe"
-if "%JAVA_EXE%"=="java" if exist "C:\Program Files\Zulu\zulu11.92.113-ca-fx-jdk11.0.33-win_x64\bin\java.exe" set "JAVA_EXE=C:\Program Files\Zulu\zulu11.92.113-ca-fx-jdk11.0.33-win_x64\bin\java.exe"
+
+rem JAVA_HOME is used only if it is a Java 21 JavaFX JDK
+if "%JAVA_EXE%"=="java" if defined JAVA_HOME if exist "%JAVA_HOME%\jmods\javafx.controls.jmod" if exist "%JAVA_HOME%\release" (
+    findstr /b /c:"JAVA_VERSION=" "%JAVA_HOME%\release" | findstr /c:"21" >nul 2>&1
+    if not errorlevel 1 set "JAVA_EXE=%JAVA_HOME%\bin\java.exe"
+)
+
+rem jdk\ next to the launcher
+if "%JAVA_EXE%"=="java" if exist "%APP_ROOT%jdk\jmods\javafx.controls.jmod" set "JAVA_EXE=%APP_ROOT%jdk\bin\java.exe"
+
+rem Zulu 21 FX cached by build.ps1
+if "%JAVA_EXE%"=="java" for /d %%D in ("%LOCALAPPDATA%\filebot-build-tools\zulu21fx\zulu21*") do if exist "%%~fD\jmods\javafx.controls.jmod" set "JAVA_EXE=%%~fD\bin\java.exe"
+
+rem Zulu 21 FX installed under Program Files
+if "%JAVA_EXE%"=="java" for /d %%D in ("C:\Program Files\Zulu\zulu21*-ca-fx-jdk*") do if exist "%%~fD\jmods\javafx.controls.jmod" set "JAVA_EXE=%%~fD\bin\java.exe"
 
 rem --- prefer filebot.jar next to this script, else the newest dist\FileBot_*.jar
 set "JAR=%APP_ROOT%filebot.jar"

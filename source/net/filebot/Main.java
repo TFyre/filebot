@@ -8,12 +8,6 @@ import static net.filebot.util.ui.SwingUI.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.security.CodeSource;
-import java.security.Permission;
-import java.security.PermissionCollection;
-import java.security.Permissions;
-import java.security.Policy;
-import java.security.ProtectionDomain;
 import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -26,7 +20,6 @@ import org.kohsuke.args4j.CmdLineException;
 
 import net.filebot.cli.ArgumentBean;
 import net.filebot.cli.ArgumentProcessor;
-import net.filebot.format.ExpressionFormat;
 import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.platform.windows.WinAppUtilities;
 import net.filebot.ui.FileBotMenuBar;
@@ -93,7 +86,6 @@ public class Main {
 
 			// initialize this stuff before anything else
 			CacheManager.getInstance();
-			initializeSecurityManager();
 
 			// initialize history spooler
 			HistorySpooler.getInstance().setPersistentHistoryEnabled(useRenameHistory());
@@ -226,37 +218,6 @@ public class Main {
 		int width = Integer.parseInt(settings.get("window.width"));
 		int height = Integer.parseInt(settings.get("window.height"));
 		window.setBounds(x, y, width, height);
-	}
-
-	/**
-	 * Initialize default SecurityManager and grant all permissions via security policy. Initialization is required in order to run {@link ExpressionFormat} in a secure sandbox.
-	 */
-	private static void initializeSecurityManager() {
-		try {
-			// initialize security policy used by the default security manager
-			// because default the security policy is very restrictive (e.g. no FilePermission)
-			Policy.setPolicy(new Policy() {
-
-				@Override
-				public boolean implies(ProtectionDomain domain, Permission permission) {
-					// all permissions
-					return true;
-				}
-
-				@Override
-				public PermissionCollection getPermissions(CodeSource codesource) {
-					// VisualVM can't connect if this method does return
-					// a checked immutable PermissionCollection
-					return new Permissions();
-				}
-			});
-
-			// set default security manager
-			System.setSecurityManager(new SecurityManager());
-		} catch (Exception e) {
-			// security manager was probably set via system property
-			debug.log(Level.WARNING, e.getMessage(), e);
-		}
 	}
 
 	public static void initializeSystemProperties(ArgumentBean args) {

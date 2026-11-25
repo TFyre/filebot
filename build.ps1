@@ -1,6 +1,6 @@
 #requires -version 5.1
 # FileBot private build bootstrap:
-#   - finds (or downloads) a JavaFX-enabled JDK
+#   - finds (or downloads) a Java 21 FX-enabled JDK
 #   - downloads Ant + Ivy into a local cache
 #   - runs Ivy resolve, fixes the slf4j-api artifact, and builds the fat jar
 # Optional: set FILEBOT_ANT_ARGS to override the Ant targets (default: "clean fatjar").
@@ -18,9 +18,9 @@ $ToolsDir      = if ($env:FILEBOT_TOOLS_DIR) { $env:FILEBOT_TOOLS_DIR } else { J
 $AntVersion    = '1.10.15'
 $IvyVersion    = '2.4.0'
 $Slf4jVersion  = '1.7.25'
-$ZuluVersion   = '11.0.33.1'
-$ZuluUrl       = 'https://cdn.azul.com/zulu/bin/zulu11.92.201-ca-fx-jdk11.0.33.1-win_x64.zip'
-$ZuluDir       = Join-Path $ToolsDir 'zulu11fx'
+$ZuluVersion   = '21.0.13.1'
+$ZuluUrl       = 'https://cdn.azul.com/zulu/bin/zulu21.54.201-ca-fx-jdk21.0.13.1-win_x64.zip'
+$ZuluDir       = Join-Path $ToolsDir 'zulu21fx'
 $AntDir        = Join-Path $ToolsDir "apache-ant-$AntVersion"
 $AntBat        = Join-Path $AntDir 'bin\ant.bat'
 $IvyJar        = Join-Path $ToolsDir "ivy-$IvyVersion.jar"
@@ -31,12 +31,15 @@ function Write-Step([string]$Message) {
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
-function Test-JdkFx([string]$Path) {
+function Test-Jdk21Fx([string]$Path) {
     if (-not $Path) { return $false }
     $javac = Join-Path $Path 'bin\javac.exe'
     $fxJmod = Join-Path $Path 'jmods\javafx.controls.jmod'
-    $fxProps = Join-Path $Path 'lib\javafx.properties'
-    return (Test-Path $javac) -and ((Test-Path $fxJmod) -or (Test-Path $fxProps))
+    $release = Join-Path $Path 'release'
+    if (-not (Test-Path $javac) -or -not (Test-Path $fxJmod) -or -not (Test-Path $release)) { return $false }
+
+    $line = Get-Content -Path $release | Where-Object { $_ -like 'JAVA_VERSION=*' } | Select-Object -First 1
+    return $line -match 'JAVA_VERSION="21'
 }
 
 function Get-File([string]$Url, [string]$Destination) {
@@ -61,23 +64,23 @@ function Assert-Hash([string]$File, [string]$Url, [string]$Algorithm) {
 
 # ---------------------------------------------------------------- JDK ----
 $Jdk = $null
-$candidates = @(
-    $env:FILEBOT_JDK,
-    $env:JAVA_HOME,
-    'C:\Program Files\Zulu\zulu11.92.113-ca-fx-jdk11.0.33-win_x64',
-    (Join-Path $ZuluDir 'zulu11.92.201-ca-fx-jdk11.0.33.1-win_x64')
-)
+$candidates = @($env:FILEBOT_JDK, $env:JAVA_HOME)
+if (Test-Path $ZuluDir) {
+    $candidates += Get-ChildItem -Path $ZuluDir -Directory | Select-Object -ExpandProperty FullName
+}
+$candidates += Get-ChildItem -Path 'C:\Program Files\Zulu' -Directory -Filter 'zulu21*-ca-fx-jdk*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+
 foreach ($candidate in $candidates) {
-    if (Test-JdkFx $candidate) { $Jdk = $candidate; break }
+    if (Test-Jdk21Fx $candidate) { $Jdk = $candidate; break }
 }
 
 if (-not $Jdk) {
-    $zip = Join-Path $ToolsDir "zulu-$ZuluVersion-win_x64.zip"
+    $zip = Join-Path $ZuluDir 'zulu21fx.zip'
     Get-File $ZuluUrl $zip
     Write-Step "Extracting Zulu $ZuluVersion"
     Expand-Archive -Path $zip -DestinationPath $ZuluDir -Force
     $Jdk = Get-ChildItem -Path $ZuluDir -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
-    if (-not (Test-JdkFx $Jdk)) { throw "Downloaded JDK does not contain JavaFX: $Jdk" }
+    if (-not (Test-Jdk21Fx $Jdk)) { throw "Downloaded JDK is not a Java 21 FX JDK: $Jdk" }
 }
 
 $env:JAVA_HOME = $Jdk
@@ -133,7 +136,7 @@ if ($AntArgs.Count -eq 0) { $AntArgs = @('clean', 'fatjar') }
 Write-Step "Running ant $($AntArgs -join ' ')"
 Push-Location $RepoRoot
 try {
-    & $AntBat -lib $IvyJar '-Djvm.version=11' @AntArgs
+    & $AntBat -lib $IvyJar @AntArgs
     $code = $LASTEXITCODE
 } finally {
     Pop-Location
