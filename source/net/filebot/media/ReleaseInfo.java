@@ -218,31 +218,11 @@ public class ReleaseInfo {
 			// user root folder
 			volumes.add(home);
 
-			// Windows / Linux / Mac system roots
+			// system roots (drive letters on Windows)
 			volumes.addAll(roots);
 
-			// Linux / Mac
-			if (File.separator.equals("/")) {
-				// Linux and Mac system root folders
-				for (File root : roots) {
-					volumes.addAll(getChildren(root, FOLDERS));
-				}
-
-				for (File mediaRoot : getMediaRoots()) {
-					volumes.addAll(getChildren(mediaRoot, FOLDERS));
-					volumes.add(mediaRoot);
-				}
-			}
-
-			// Mac
-			if (isMacSandbox()) {
-				// e.g. ignore default Movie folder (user.home and real user home are different in the sandbox environment)
-				for (File userFolder : getChildren(new File(System.getProperty("user.home")), FOLDERS)) {
-					volumes.add(new File(home, userFolder.getName()));
-				}
-			} else {
-				volumes.addAll(getChildren(home, FOLDERS));
-			}
+			// user folders
+			volumes.addAll(getChildren(home, FOLDERS));
 
 			volumeRoots = unmodifiableSet(volumes);
 		}
@@ -408,11 +388,6 @@ public class ReleaseInfo {
 			systemFilesFilter = new RegexFileFilter(compile(getProperty("pattern.system.files"), CASE_INSENSITIVE));
 		}
 		return systemFilesFilter;
-	}
-
-	public List<File> getMediaRoots() {
-		String roots = getProperty("folder.media.roots");
-		return COMMA.splitAsStream(roots).map(File::new).collect(toList());
 	}
 
 	public String[] getSubtitleCategoryTags() {

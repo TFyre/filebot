@@ -2,7 +2,6 @@ package net.filebot.format;
 
 import static java.util.Collections.*;
 import static java.util.stream.Collectors.*;
-import static net.filebot.Settings.*;
 import static net.filebot.util.RegularExpressions.*;
 
 import java.io.File;
@@ -20,7 +19,6 @@ import com.sun.jna.Platform;
 import groovy.lang.Closure;
 import groovy.util.XmlSlurper;
 import net.filebot.ApplicationFolder;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.util.FileUtilities;
 
 /**
@@ -126,10 +124,6 @@ public class ExpressionFormatFunctions {
 
 		if (!f.isAbsolute()) {
 			f = ApplicationFolder.UserHome.resolve(f.getPath());
-		}
-
-		if (isMacSandbox()) {
-			MacAppUtilities.askUnlockFolders(null, singleton(f));
 		}
 
 		return f;

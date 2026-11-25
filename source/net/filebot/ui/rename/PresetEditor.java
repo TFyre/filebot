@@ -40,7 +40,6 @@ import net.filebot.WebServices;
 import net.filebot.format.ExpressionFileFormat;
 import net.filebot.format.ExpressionFilter;
 import net.filebot.format.MediaBindingBean;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.ui.HeaderPanel;
 import net.filebot.ui.rename.FormatDialog.Mode;
 import net.filebot.util.FileUtilities.ExtensionFileFilter;
@@ -333,12 +332,6 @@ public class PresetEditor extends JDialog {
 				Preset preset = getPreset();
 				if (preset.getInputFolder() == null) {
 					return;
-				}
-
-				if (isMacSandbox()) {
-					if (!MacAppUtilities.askUnlockFolders(getWindow(evt.getSource()), singleton(preset.getInputFolder()))) {
-						return;
-					}
 				}
 
 				List<File> files = preset.selectFiles();

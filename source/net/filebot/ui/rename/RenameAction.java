@@ -36,7 +36,6 @@ import net.filebot.NativeRenameAction;
 import net.filebot.ResourceManager;
 import net.filebot.StandardRenameAction;
 import net.filebot.UserFiles;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.similarity.Match;
 import net.filebot.util.ui.ProgressMonitor;
 import net.filebot.util.ui.ProgressMonitor.ProgressWorker;
@@ -203,13 +202,6 @@ class RenameAction extends AbstractAction {
 		};
 
 		if (ValidateDialog.validate(parent, destinationPathView)) {
-			// ask for user permissions for output folders so we can check them
-			if (isMacSandbox()) {
-				if (!MacAppUtilities.askUnlockFolders(parent, renameMap.entrySet().stream().flatMap(e -> Stream.of(e.getKey(), resolve(e.getKey(), e.getValue()))).collect(toList()))) {
-					return emptyMap();
-				}
-			}
-
 			if (ConflictDialog.check(parent, renameMap)) {
 				return renameMap;
 			}

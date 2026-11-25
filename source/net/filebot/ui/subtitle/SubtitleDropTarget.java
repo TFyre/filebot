@@ -39,7 +39,6 @@ import javax.swing.JDialog;
 import javax.swing.SwingUtilities;
 
 import net.filebot.ResourceManager;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.ui.subtitle.upload.SubtitleUploadDialog;
 import net.filebot.util.FileUtilities;
 import net.filebot.util.FileUtilities.ExtensionFileFilter;
@@ -268,11 +267,6 @@ abstract class SubtitleDropTarget extends JButton {
 			}
 
 			setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-
-			// make sure we have access to the parent folder structure, not just the dropped file
-			if (isMacSandbox()) {
-				MacAppUtilities.askUnlockFolders(getWindow(this), selection);
-			}
 
 			// perform a drop action depending on the given files
 			List<File> files = listFiles(selection, FILES, HUMAN_NAME_ORDER);

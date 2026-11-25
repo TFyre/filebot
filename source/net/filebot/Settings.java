@@ -77,32 +77,12 @@ public final class Settings {
 		return System.getProperty("application.deployment", "jar");
 	}
 
-	public static boolean isPortableApp() {
-		return isApplicationDeployment("portable", "jar");
+	public static boolean isWindowsOs() {
+		return System.getProperty("os.name", "").startsWith("Windows");
 	}
 
 	public static boolean isAppStore() {
 		return isApplicationDeployment("mas", "appx");
-	}
-
-	public static boolean isWindowsApp() {
-		return isApplicationDeployment("appx", "msi");
-	}
-
-	public static boolean isUbuntuApp() {
-		return isApplicationDeployment("deb", "snap");
-	}
-
-	public static boolean isMacApp() {
-		return isApplicationDeployment("mas", "cask");
-	}
-
-	public static boolean isMacSandbox() {
-		return isApplicationDeployment("mas");
-	}
-
-	public static boolean isAutoUpdateEnabled() {
-		return isApplicationDeployment("mas", "appx", "snap", "spk", "aur");
 	}
 
 	private static boolean isApplicationDeployment(String... ids) {
@@ -112,10 +92,6 @@ public final class Settings {
 				return true;
 		}
 		return false;
-	}
-
-	public static String getApplicationUserModelID() {
-		return System.getProperty("net.filebot.AppUserModelID", getApplicationName());
 	}
 
 	public static FileChooser getPreferredFileChooser() {

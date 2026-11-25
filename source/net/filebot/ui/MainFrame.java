@@ -53,19 +53,19 @@ public class MainFrame extends JFrame {
 	private HeaderPanel headerPanel;
 
 	public MainFrame(PanelBuilder[] panels) {
-		super(isAutoUpdateEnabled() ? getApplicationName() : String.format("%s %s", getApplicationName(), getApplicationVersion()));
+		super(String.format("%s %s", getApplicationName(), getApplicationVersion()));
 
 		selectionList = new PanelSelectionList(panels);
 		headerPanel = new HeaderPanel();
 
 		JScrollPane selectionListScrollPane = new JScrollPane(selectionList, VERTICAL_SCROLLBAR_NEVER, HORIZONTAL_SCROLLBAR_NEVER);
 		selectionListScrollPane.setOpaque(false);
-		selectionListScrollPane.setBorder(createCompoundBorder(new ShadowBorder(), isMacApp() ? createLineBorder(new Color(0x809DB8), 1, false) : selectionListScrollPane.getBorder()));
+		selectionListScrollPane.setBorder(createCompoundBorder(new ShadowBorder(), selectionListScrollPane.getBorder()));
 
 		headerPanel.getTitleLabel().setBorder(createEmptyBorder(8, 90, 10, 0));
 
 		JComponent c = (JComponent) getContentPane();
-		c.setLayout(new MigLayout("insets 0, fill, hidemode 3", String.format("%dpx[fill]", isUbuntuApp() ? 110 : 95), "fill"));
+		c.setLayout(new MigLayout("insets 0, fill, hidemode 3", "95px[fill]", "fill"));
 
 		c.add(selectionListScrollPane, "pos 6px 10px n 100%-12px");
 		c.add(headerPanel, "growx, dock north");

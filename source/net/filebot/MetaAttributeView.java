@@ -15,24 +15,15 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.sun.jna.Platform;
-
-import net.filebot.platform.mac.MacXattrView;
-
 public class MetaAttributeView extends AbstractMap<String, String> {
 
-	private final Object xattr;
+	private final UserDefinedFileAttributeView xattr;
 
 	public MetaAttributeView(File file) throws IOException {
 		// resolve symlinks
 		Path path = file.toPath().toRealPath();
 
-		// UserDefinedFileAttributeView (for Windows and Linux) OR our own xattr.h JNA wrapper via MacXattrView (for Mac) because UserDefinedFileAttributeView is not supported (Oracle Java 7/8)
-		if (Platform.isMac()) {
-			xattr = new MacXattrView(path);
-		} else {
-			xattr = Files.getFileAttributeView(path, UserDefinedFileAttributeView.class);
-		}
+		xattr = Files.getFileAttributeView(path, UserDefinedFileAttributeView.class);
 
 		// sanity check
 		if (xattr == null) {
@@ -47,50 +38,27 @@ public class MetaAttributeView extends AbstractMap<String, String> {
 
 	public String get(String key) {
 		try {
-			if (xattr instanceof UserDefinedFileAttributeView) {
-				UserDefinedFileAttributeView attributeView = (UserDefinedFileAttributeView) xattr;
-				try {
-					ByteBuffer buffer = ByteBuffer.allocate(attributeView.size(key));
-					attributeView.read(key, buffer);
-					buffer.flip();
+			ByteBuffer buffer = ByteBuffer.allocate(xattr.size(key));
+			xattr.read(key, buffer);
+			buffer.flip();
 
-					return UTF_8.decode(buffer).toString();
-				} catch (FileSystemException e) {
-					// attribute does not exist
-					return null;
-				}
-			}
-
-			if (xattr instanceof MacXattrView) {
-				MacXattrView macXattr = (MacXattrView) xattr;
-				return macXattr.read(key);
-			}
+			return UTF_8.decode(buffer).toString();
+		} catch (FileSystemException e) {
+			// attribute does not exist
+			return null;
 		} catch (IOException e) {
 			debug.warning(cause(e));
+			return null;
 		}
-
-		return null;
 	}
 
 	@Override
 	public String put(String key, String value) {
 		try {
-			if (xattr instanceof UserDefinedFileAttributeView) {
-				UserDefinedFileAttributeView attributeView = (UserDefinedFileAttributeView) xattr;
-				if (value == null || value.isEmpty()) {
-					attributeView.delete(key);
-				} else {
-					attributeView.write(key, UTF_8.encode(value));
-				}
-			}
-
-			if (xattr instanceof MacXattrView) {
-				MacXattrView macXattr = (MacXattrView) xattr;
-				if (value == null || value.isEmpty()) {
-					macXattr.delete(key);
-				} else {
-					macXattr.write(key, value);
-				}
+			if (value == null || value.isEmpty()) {
+				xattr.delete(key);
+			} else {
+				xattr.write(key, UTF_8.encode(value));
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -111,17 +79,7 @@ public class MetaAttributeView extends AbstractMap<String, String> {
 	}
 
 	public List<String> list() throws IOException {
-		if (xattr instanceof UserDefinedFileAttributeView) {
-			UserDefinedFileAttributeView attributeView = (UserDefinedFileAttributeView) xattr;
-			return attributeView.list();
-		}
-
-		if (xattr instanceof MacXattrView) {
-			MacXattrView macXattr = (MacXattrView) xattr;
-			return macXattr.list();
-		}
-
-		return null;
+		return xattr.list();
 	}
 
 	@Override

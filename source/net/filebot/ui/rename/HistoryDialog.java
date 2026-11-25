@@ -7,7 +7,6 @@ import static java.util.regex.Pattern.*;
 import static java.util.stream.Collectors.*;
 import static javax.swing.JOptionPane.*;
 import static net.filebot.Logging.*;
-import static net.filebot.Settings.*;
 import static net.filebot.UserFiles.*;
 import static net.filebot.media.XattrMetaInfo.*;
 import static net.filebot.util.FileUtilities.*;
@@ -72,7 +71,6 @@ import javax.swing.table.TableRowSorter;
 import net.filebot.History;
 import net.filebot.History.Element;
 import net.filebot.History.Sequence;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.HistorySpooler;
 import net.filebot.ResourceManager;
 import net.filebot.StandardRenameAction;
@@ -278,10 +276,6 @@ class HistoryDialog extends JDialog {
 	private JScrollPane createScrollPaneGroup(String title, JComponent component) {
 		JScrollPane scrollPane = new JScrollPane(component);
 		scrollPane.setBorder(new CompoundBorder(new TitledBorder(title), scrollPane.getBorder()));
-
-		if (isMacApp()) {
-			scrollPane.setOpaque(false);
-		}
 
 		return scrollPane;
 	}
@@ -514,11 +508,6 @@ class HistoryDialog extends JDialog {
 
 		private void revert(File directory, List<Element> elements) {
 			Map<File, File> renamePlan = getRenameMap(directory);
-			if (isMacSandbox()) {
-				if (!MacAppUtilities.askUnlockFolders(parent(), Stream.of(renamePlan.keySet(), renamePlan.values()).flatMap(c -> c.stream()).collect(toList()))) {
-					return;
-				}
-			}
 
 			int count = 0;
 			try {

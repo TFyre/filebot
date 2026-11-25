@@ -77,40 +77,11 @@
 		<delete dir="${dir.lib}/ivy" />
 		<ivy:retrieve pattern="${dir.lib}/ivy/[type]/[artifact].[ext]" />
 
-		<antcall target="resolve-import-native">
-			<param name="arch" value="mac-x86_64" />
-			<param name="arch.jna" value="darwin" />
-			<param name="arch.7zj" value="Mac-x86_64" />
-		</antcall>
+		<!-- Windows x64 only -->
 		<antcall target="resolve-import-native">
 			<param name="arch" value="win32-x64" />
 			<param name="arch.jna" value="win32-x86-64" />
 			<param name="arch.7zj" value="Windows-amd64" />
-		</antcall>
-		<antcall target="resolve-import-native">
-			<param name="arch" value="win32-x86" />
-			<param name="arch.jna" value="win32-x86/" />
-			<param name="arch.7zj" value="Windows-x86" />
-		</antcall>
-		<antcall target="resolve-import-native">
-			<param name="arch" value="linux-amd64" />
-			<param name="arch.jna" value="linux-x86-64" />
-			<param name="arch.7zj" value="Linux-amd64" />
-		</antcall>
-		<antcall target="resolve-import-native">
-			<param name="arch" value="linux-i686" />
-			<param name="arch.jna" value="linux-x86" />
-			<param name="arch.7zj" value="Linux-i386" />
-		</antcall>
-		<antcall target="resolve-import-native">
-			<param name="arch" value="linux-armv7l" />
-			<param name="arch.jna" value="linux-arm" />
-			<param name="arch.7zj" value="linux-arm" />
-		</antcall>
-		<antcall target="resolve-import-native">
-			<param name="arch" value="linux-armv8" />
-			<param name="arch.jna" value="linux-aarch64" />
-			<param name="arch.7zj" value="linux-aarch64" />
 		</antcall>
 	</target>
 
@@ -227,10 +198,6 @@
 			</zipfileset>
 
 			<!-- include native libraries -->
-			<zipfileset src="${dir.dist}/lib/ObjCBridge.jar">
-				<include name="ca/weblite/**" />
-				<include name="com/sun/jna/**" />
-			</zipfileset>
 			<zipfileset src="${dir.dist}/lib/jna.jar">
 				<include name="com/sun/jna/**" />
 
@@ -802,7 +769,6 @@
 			</fileset>
 			<fileset dir="${dir.lib}/jars">
 				<include name="xmlrpc.jar" />
-				<include name="ObjCBridge.jar" />
 				<include name="simmetrics.jar" />
 				<include name="jacksum.jar" />
 			</fileset>

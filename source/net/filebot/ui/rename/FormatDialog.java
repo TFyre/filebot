@@ -69,7 +69,6 @@ import net.filebot.format.ExpressionFormat;
 import net.filebot.format.MediaBindingBean;
 import net.filebot.format.SuppressedThrowables;
 import net.filebot.media.MetaAttributes;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.util.DefaultThreadFactory;
 import net.filebot.util.PreferencesList;
 import net.filebot.util.PreferencesMap.PreferencesEntry;
@@ -257,11 +256,6 @@ public class FormatDialog extends JDialog {
 
 		// update preview if sample has changed
 		addPropertyChangeListener("sample", evt -> {
-			if (isMacSandbox()) {
-				if (sample != null && sample.getFileObject() != null && sample.getFileObject().exists()) {
-					MacAppUtilities.askUnlockFolders(getWindow(evt.getSource()), singleton(sample.getFileObject()));
-				}
-			}
 			checkFormatInBackground();
 		});
 

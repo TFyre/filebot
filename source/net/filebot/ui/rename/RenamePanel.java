@@ -67,7 +67,6 @@ import net.filebot.WebServices;
 import net.filebot.format.ExpressionFileFormat;
 import net.filebot.format.MediaBindingBean;
 import net.filebot.media.MetaAttributes;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.similarity.Match;
 import net.filebot.ui.SelectDialog;
 import net.filebot.ui.rename.FormatDialog.Mode;
@@ -738,12 +737,6 @@ public class RenamePanel extends JComponent {
 				return super.getFiles(evt); // default behaviour
 			}
 
-			if (isMacSandbox()) {
-				if (!MacAppUtilities.askUnlockFolders(getWindow(RenamePanel.this), singleton(inputFolder))) {
-					return emptyList();
-				}
-			}
-
 			try {
 				List<File> selection = onSecondaryLoop(preset::selectFiles); // run potentially long-running operations on secondary EDT
 
@@ -906,13 +899,6 @@ public class RenamePanel extends JComponent {
 			SortOrder order = getSortOrder(evt);
 			Locale locale = getLocale(evt);
 			boolean autodetection = isAutoDetectionEnabled(evt);
-
-			if (isMacSandbox()) {
-				if (!MacAppUtilities.askUnlockFolders(getWindow(RenamePanel.this), remainingFiles)) {
-					namesList.firePropertyChange(LOADING_PROPERTY, true, false);
-					return;
-				}
-			}
 
 			SwingWorker<List<Match<File, ?>>, Void> worker = new SwingWorker<List<Match<File, ?>>, Void>() {
 

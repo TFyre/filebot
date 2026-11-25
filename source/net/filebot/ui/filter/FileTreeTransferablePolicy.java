@@ -1,7 +1,6 @@
 package net.filebot.ui.filter;
 
 import static net.filebot.Logging.*;
-import static net.filebot.Settings.*;
 import static net.filebot.util.ExceptionUtilities.*;
 import static net.filebot.util.FileUtilities.*;
 import static net.filebot.util.ui.SwingUI.*;
@@ -15,7 +14,6 @@ import java.util.logging.Level;
 
 import javax.swing.tree.TreeNode;
 
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.ui.filter.FileTree.FileNode;
 import net.filebot.ui.filter.FileTree.FolderNode;
 import net.filebot.ui.transfer.BackgroundFileTransferablePolicy;
@@ -53,11 +51,6 @@ class FileTreeTransferablePolicy extends BackgroundFileTransferablePolicy<TreeNo
 
 	@Override
 	protected void load(List<File> files, TransferAction action) {
-		// make sure we have access to the parent folder structure, not just the dropped file
-		if (isMacSandbox()) {
-			MacAppUtilities.askUnlockFolders(getWindow(tree), files);
-		}
-
 		try {
 			// use fast file to minimize system calls like length(), isDirectory(), isFile(), ...
 			TreeNode[] node = files.stream().map(FastFile::new).map(this::getTreeNode).toArray(TreeNode[]::new);

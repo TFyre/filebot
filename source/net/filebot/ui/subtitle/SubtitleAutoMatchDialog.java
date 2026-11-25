@@ -61,7 +61,6 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 import net.filebot.ResourceManager;
 import net.filebot.WebServices;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.subtitle.SubtitleMetrics;
 import net.filebot.subtitle.SubtitleNaming;
 import net.filebot.util.ui.AbstractBean;
@@ -266,11 +265,6 @@ class SubtitleAutoMatchDialog extends JDialog {
 			}
 
 			final SubtitleMappingTableModel mappingModel = (SubtitleMappingTableModel) subtitleMappingTable.getModel();
-
-			// make sure we have access to the parent folder structure, not just the dropped file
-			if (isMacSandbox()) {
-				MacAppUtilities.askUnlockFolders(getWindow(evt.getSource()), mappingModel.getVideoFiles());
-			}
 
 			// collect the subtitles that will be fetched
 			List<DownloadTask> downloadQueue = new ArrayList<DownloadTask>();

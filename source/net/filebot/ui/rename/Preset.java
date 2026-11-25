@@ -148,7 +148,7 @@ public class Preset {
 	}
 
 	public static StandardRenameAction[] getSupportedActions() {
-		if (isWindowsApp()) {
+		if (isWindowsOs()) {
 			// CoW clones not supported on Windows
 			return new StandardRenameAction[] { StandardRenameAction.MOVE, StandardRenameAction.COPY, StandardRenameAction.KEEPLINK, StandardRenameAction.SYMLINK, StandardRenameAction.HARDLINK };
 		} else {

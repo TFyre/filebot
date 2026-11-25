@@ -21,7 +21,6 @@ import java.util.logging.Level;
 
 import net.filebot.hash.HashType;
 import net.filebot.hash.VerificationFileReader;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.ui.transfer.BackgroundFileTransferablePolicy;
 import net.filebot.util.ExceptionUtilities;
 import net.filebot.util.FileSet;
@@ -74,11 +73,6 @@ class ChecksumTableTransferablePolicy extends BackgroundFileTransferablePolicy<C
 
 	@Override
 	protected void load(List<File> files, TransferAction action) throws IOException {
-		// make sure we have access to the parent folder structure, not just the dropped file
-		if (isMacSandbox()) {
-			MacAppUtilities.askUnlockFolders(getWindow(table), files);
-		}
-
 		// initialize drop parameters
 		executor.set(computationService.newExecutor());
 		verificationTracker.set(new VerificationTracker(5));

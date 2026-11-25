@@ -20,9 +20,7 @@ import org.kohsuke.args4j.CmdLineException;
 
 import net.filebot.cli.ArgumentBean;
 import net.filebot.cli.ArgumentProcessor;
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.platform.windows.WinAppUtilities;
-import net.filebot.ui.FileBotMenuBar;
 import net.filebot.ui.MainFrame;
 import net.filebot.ui.NotificationHandler;
 import net.filebot.ui.PanelBuilder;
@@ -150,12 +148,8 @@ public class Main {
 	}
 
 	private static void startUserInterface(ArgumentBean args) {
-		// use native LaF an all platforms (use platform-independent laf for standalone jar deployment)
-		if (isPortableApp()) {
-			setNimbusLookAndFeel();
-		} else {
-			setSystemLookAndFeel();
-		}
+		// use the native system Look & Feel
+		setSystemLookAndFeel();
 
 		// start multi panel or single panel frame
 		PanelBuilder[] panels = args.getPanelBuilders();
@@ -180,20 +174,10 @@ public class Main {
 		}));
 
 		// configure main window
-		if (isMacApp()) {
-			// Mac specific configuration
-			MacAppUtilities.initializeApplication(FileBotMenuBar.createHelp(), files -> SwingEventBus.getInstance().post(new FileTransferable(files)));
-		} else if (isUbuntuApp()) {
-			// Ubuntu/Debian specific configuration
-			frame.setIconImages(ResourceManager.getApplicationIconImages());
-		} else if (isWindowsApp()) {
-			// Windows specific configuration
+		if (isWindowsOs()) {
 			WinAppUtilities.initializeApplication();
-			frame.setIconImages(ResourceManager.getApplicationIconImages());
-		} else {
-			// generic Linux/FreeBSD/Solaris configuration
-			frame.setIconImages(ResourceManager.getApplicationIconImages());
 		}
+		frame.setIconImages(ResourceManager.getApplicationIconImages());
 
 		// start application
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);

@@ -24,7 +24,6 @@ import java.util.logging.Level;
 
 import javax.swing.JFileChooser;
 
-import net.filebot.platform.mac.MacAppUtilities;
 import net.filebot.util.FileUtilities;
 import net.filebot.util.FileUtilities.ExtensionFileFilter;
 
@@ -225,27 +224,6 @@ public class UserFiles {
 
 				Frame[] frames = Frame.getFrames();
 				return new FileDialog(frames.length > 0 ? frames[0] : null, title, mode);
-			}
-		},
-
-		COCOA {
-
-			@Override
-			public List<File> showLoadDialogSelectFiles(boolean folderMode, boolean multiSelection, File defaultFile, ExtensionFileFilter filter, String title, ActionEvent evt) {
-				// directly use NSOpenPanel for via Objective-C bridge for FILES_AND_DIRECTORIES mode
-				if (folderMode && filter != null) {
-					// call native NSOpenPanel openPanel via Objective-C bridge
-					return MacAppUtilities.NSOpenPanel_openPanel_runModal(title, true, true, true, filter.acceptAny() ? null : filter.extensions());
-				}
-
-				// default to AWT implementation
-				return AWT.showLoadDialogSelectFiles(folderMode, multiSelection, defaultFile, filter, title, evt);
-			}
-
-			@Override
-			public File showSaveDialogSelectFile(boolean folderMode, File defaultFile, String title, ActionEvent evt) {
-				// default to AWT implementation
-				return AWT.showSaveDialogSelectFile(folderMode, defaultFile, title, evt);
 			}
 		},
 

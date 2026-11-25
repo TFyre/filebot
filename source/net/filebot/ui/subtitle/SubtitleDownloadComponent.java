@@ -54,7 +54,6 @@ import ca.odell.glazedlists.swing.DefaultEventListModel;
 import ca.odell.glazedlists.swing.DefaultEventSelectionModel;
 import ca.odell.glazedlists.swing.TextComponentMatcherEditor;
 import net.filebot.ResourceManager;
-import net.filebot.Settings;
 import net.filebot.subtitle.SubtitleFormat;
 import net.filebot.ui.subtitle.SubtitlePackage.Download.Phase;
 import net.filebot.ui.transfer.DefaultTransferHandler;
@@ -298,20 +297,14 @@ class SubtitleDownloadComponent extends JComponent {
 			long selectedTimingOffset = 0;
 			Charset selectedEncoding = UTF_8;
 
-			// just use default values when we can't use a JFC with accessory component (also Swing OSX LaF doesn't seem to support JFileChooser::setAccessory)
-			if (Settings.isMacApp()) {
-				// COCOA || AWT
-				selectedOutputFolder = showOpenDialogSelectFolder(null, "Export Subtitles to Folder (SubRip / UTF-8)", new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "Export"));
-			} else {
-				// Swing
-				SubtitleFileChooser sfc = new SubtitleFileChooser();
-				sfc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-				if (sfc.showSaveDialog(getWindow(this)) == JFileChooser.APPROVE_OPTION) {
-					selectedOutputFolder = sfc.getSelectedFile();
-					selectedFormat = sfc.getSelectedFormat();
-					selectedTimingOffset = sfc.getTimingOffset();
-					selectedEncoding = sfc.getSelectedEncoding();
-				}
+			// use the Swing subtitle file chooser
+			SubtitleFileChooser sfc = new SubtitleFileChooser();
+			sfc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+			if (sfc.showSaveDialog(getWindow(this)) == JFileChooser.APPROVE_OPTION) {
+				selectedOutputFolder = sfc.getSelectedFile();
+				selectedFormat = sfc.getSelectedFormat();
+				selectedTimingOffset = sfc.getTimingOffset();
+				selectedEncoding = sfc.getSelectedEncoding();
 			}
 
 			if (selectedOutputFolder != null) {

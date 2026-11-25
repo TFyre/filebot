@@ -1,23 +1,14 @@
 package net.filebot.ui.transfer;
 
-import static net.filebot.Logging.*;
-import static net.filebot.Settings.*;
-
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.CharBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Scanner;
-
-import net.filebot.platform.gnome.GVFS;
 
 public class FileTransferable implements Transferable {
 
@@ -86,46 +77,7 @@ public class FileTransferable implements Transferable {
 	}
 
 	public static List<File> getFilesFromTransferable(Transferable tr) throws IOException, UnsupportedFlavorException {
-		// On Linux, if a file is dragged from a smb share to into a java application (e.g. Ubuntu Files to FileBot)
-		// the application/x-java-file-list transfer data will be an empty list
-		// because the native uri-list flavor drop data will be a list of smb URLs (e.g. smb://10.0.0.1/data/file.txt)
-		// and not local GVFS paths (e.g. /run/user/1000/gvfs/smb-share:server=10.0.01.1,share=data/file.txt)
-		if (useGVFS()) {
-			if (tr.isDataFlavorSupported(FileTransferable.uriListFlavor)) {
-				// file URI list flavor (Linux)
-
-				Readable transferData = (Readable) tr.getTransferData(FileTransferable.uriListFlavor);
-
-				try (Scanner scanner = new Scanner(transferData)) {
-					List<File> files = new ArrayList<File>();
-
-					while (scanner.hasNextLine()) {
-						String line = scanner.nextLine();
-
-						if (line.startsWith("#")) {
-							// the line is a comment (as per RFC 2483)
-							continue;
-						}
-
-						try {
-							File file = GVFS.getDefaultVFS().getPathForURI(new URI(line));
-
-							if (file == null || !file.exists()) {
-								throw new FileNotFoundException(file.getPath());
-							}
-
-							files.add(file);
-						} catch (Throwable e) {
-							debug.warning(format("GVFS: %s => %s", line, e));
-						}
-					}
-
-					return files;
-				}
-			}
-		}
-
-		// Windows / Mac and default handling
+		// Windows and default handling
 		if (tr.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
 			// file list flavor
 			Object transferable = tr.getTransferData(DataFlavor.javaFileListFlavor);
