@@ -14,7 +14,7 @@
 | `source/` | Java source (395 files), resources, property files. Starts at `net/filebot/Main.java`. |
 | `test/` | JUnit sources; **not** compiled by the `fatjar` target. |
 | `lib/jars/` | Hand-vendored jars (`xmlrpc`, `ObjCBridge`, `simmetrics`, `jacksum`, `appbundler`). |
-| `lib/native/win32-x64/` | Windows x64 native binaries used by `filebot.cmd` (MediaInfo, 7-Zip-JBinding, fpcalc, jnidispatch). Other platform folders still exist in the repo but are unused. |
+| `lib/native/win32-x64/` | Windows x64 native binaries used by `filebot.cmd` (MediaInfo, 7-Zip-JBinding, fpcalc, jnidispatch). `win32-x86` remains too; the Mac/Linux folders were removed. |
 | `downloads/` | Offline snapshots of the data indexes and signed `fn:` script bundle. Embedded into the fat jar at build time; no runtime fetch. |
 | `build.xml` | Ant build. Default target is `fatjar`. |
 | `build.cmd`, `build.ps1` | One-command private build bootstrap (JDK detection, Ant/Ivy cache, resolve, slf4j fix, fatjar). |
@@ -24,7 +24,7 @@
 | `ivy.xml` | Dependency versions; resolved with Apache Ivy. |
 | `app.properties` | Application version, main class, API keys, service URLs, target JVM. |
 | `build-data/` | Maintenance Groovy scripts run *by FileBot itself* (`filebot -script ...`). Not part of the build. |
-| `installer/`, `website/` | Packaging/website assets; not needed for a jar build. |
+| `installer/`, `website/` | Legacy packaging/website assets; the packaging targets have been removed, so these are unused. |
 
 ## Toolchain
 
@@ -32,12 +32,12 @@
 |---|---|---|
 | **Java (build)** | **Java 21** (`jvm.version: 21`, `--release 21`). Use **Zulu 21 FX** so JavaFX is available to javac. | Four source files import `javafx.*`, so javac needs JavaFX. Verified with Zulu 21 FX **21.0.13.1** (clean rebuild of all 393 source files). |
 | **Java (runtime)** | Java **21+**. Verified on Zulu 21 FX, plain Zulu 21 (CLI), and Corretto 25 with an external OpenJFX SDK 21.0.7. | JAXB is bundled in the fat jar. `initializeSecurityManager()` was removed because JDK 21 rejects it; format expressions run without a SecurityManager sandbox. JavaFX can come from an FX-enabled JDK (Zulu FX) or from an external OpenJFX SDK loaded by `filebot.cmd` via `--module-path`; plain JDK 21 works for CLI and filename-based renaming without either. |
-| **Apache Ant** | **1.9.1+** minimum. Verified **1.10.15**. | The build uses namespaced `if:`/`unless:` attributes (Ant 1.9.1+) and `if:true`. Ant is **not installed** on this machine as of 2026-11-24. |
+| **Apache Ant** | **1.9.8+** minimum (the javac `release` attribute); verified **1.10.15**. | Ant is not installed on this machine; `build.cmd` downloads/caches 1.10.15. |
 | **Apache Ivy** | Any 2.4+ / 2.5+. Verified **2.4.0** and **2.5.3**. | Must be on Ant's classpath (`ant -lib ivy.jar`). Ivy resolves all dependencies from Maven Central. |
 | **Maven** | **Not used.** There is no `pom.xml`; do not add Maven/Gradle. | Maven 3.9.16 is installed but irrelevant. |
 | **Groovy** | **Not a build tool.** `groovy-all 2.4.13` is bundled as a runtime library; there are no `.groovy` sources in the build. | The `build-data/*.groovy` maintenance scripts are run with the built FileBot jar, not with a Groovy install. |
 | **Git** | Required. | `revision` target runs `git rev-list --count master`; branch `master` must exist. |
-| Packaging tools | Not needed for `fatjar`. | `gpg`, `scp`, `codesign`, `productbuild`, `snapcraft`, `makepri`/`makeappx`, WiX `candle`/`light` are only used by `deb`/`msi`/`appx`/`cask`/`deploy-*` targets. |
+| Packaging tools | Not needed. | The packaging targets (`cask`, `deb`, `snap`, `appx`, `msi`, `portable`, `spk`, deploy/website targets) were removed; only `resolve`, `build`, `jar`, `fatjar`, `clean` and `eclipse-properties-builder` remain. |
 
 Known good downloads for this machine:
 
@@ -79,7 +79,7 @@ The manual steps below are the same sequence, for reference or CI.
 Run from the repository root. Use a JDK 11 FX `JAVA_HOME` and an Ant distribution.
 
 ```bat
-:: 1. Resolve dependencies into lib/ivy (downloads ~190 MB)
+:: 1. Resolve dependencies into lib/ivy (downloads ~177 MB of runtime + transitive optional/test artifacts)
 ant -lib C:\path\to\ivy-2.4.0.jar resolve
 
 :: 2. Fresh resolves do NOT produce the slf4j-api main artifact (see quirks).
@@ -175,9 +175,9 @@ Verified on JDK 21 (Zulu 21 FX, plain Zulu 21, and Corretto 25 + OpenJFX SDK 21.
 ## Known build/runtime quirks
 
 1. **`slf4j-api.jar` missing after a fresh `resolve`.** `slf4j-jdk14`'s POM declares `slf4j-api` a second time as a test-jar, and Ivy's default retrieve pattern has no classifier; the main artifact is never fetched. The test-jar lands at `lib/ivy/test-jar/slf4j-api.jar`, and `fatjar` fails with `The archive slf4j-api.jar doesn't exist`. Fix by downloading the main 1.7.25 jar to `lib/ivy/jar/slf4j-api.jar`, or add `org.slf4j#slf4j-api;1.7.25` to `ivy.xml`.
-2. **`jdeb` is retrieved as type `maven-plugin`** (`lib/ivy/maven-plugin/jdeb.jar`), not `lib/ivy/jar/jdeb.jar`. This is fine: `init`'s classpath is every `**/*.jar` under `lib`, so the `jdeb`/`ant-spk` taskdefs load.
+2. **Packaging dependencies removed:** `ivy.xml` no longer pulls `jdeb` or `ant-spk`, and the corresponding `init` taskdefs and packaging targets are gone. `installer/` and `website/` assets remain but are unused.
 3. **`resolve` is a separate target.** The default `fatjar` target does not depend on it. Run `resolve` once (or after changing `ivy.xml`).
-4. **`resolve` downloads ~192 MB** because jdeb's transitive tree is large. All direct dependencies (including `net.filebot:ant-spk:0.6`) are on Maven Central.
+4. **`resolve` downloads ~177 MB** of runtime plus transitive optional/test artifacts. All direct dependencies are on Maven Central.
 5. **`resolve` rewrites `lib/native/win32-x64/**`** (tracked files). It now imports Windows x64 natives only; the Mac/Linux `lib/native` folders remain in the repo but are unused. `lib/ivy/`, `build/`, `dist/`, `cache/` are gitignored.
 6. **`fatjar` uses `duplicate="fail"`.** Adding jars to it later can fail on duplicate entries (`module-info.class`, overlapping `META-INF/services`, etc.). Use explicit `include` patterns in any new `zipfileset`.
 7. **The fat jar includes JAXB** (`jaxb-api`, `jaxb-impl`, `activation`) and **omits native libraries**. JavaFX is not bundled; it must come from the JDK (Zulu FX) or be added separately.
