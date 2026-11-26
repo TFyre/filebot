@@ -7,7 +7,6 @@ import org.tukaani.xz.*
 // ------------------------------ UPDATE LISTS ------------------------------ //
 
 
-def dir_root    = project as File
 def dir_data    = data as File
 def dir_release = release as File
 
@@ -32,23 +31,6 @@ def dir_data_master = System.getProperty('net.filebot.data.master', 'https://raw
 	lines.each{ log.finest "$it" }
 	pack(output, lines)
 }
-
-
-// ------------------------------ UPDATE REVIEWS ------------------------------ //
-
-
-def reviews = []
-
-dir_root.resolve('reviews.tsv').eachLine('UTF-8'){
-	def s = it.split(/\t/, 3)*.trim()
-	reviews << [user: s[0], date: s[1], text: s[2]]
-}
-reviews = reviews.sort{ it.date }
-
-def json = new groovy.json.JsonBuilder()
-json.call(reviews as List)
-json.toPrettyString().saveAs(dir_root.resolve('website/reviews.json'))
-log.info "Reviews: " + reviews.size()
 
 
 // ------------------------------ FUNCTIONS ------------------------------ //

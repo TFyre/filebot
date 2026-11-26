@@ -13,7 +13,7 @@
 |---|---|
 | `source/` | Java source (385 files), resources, property files. Starts at `net/filebot/Main.java`. |
 | `test/` | JUnit sources; **not** compiled by the `fatjar` target. |
-| `lib/jars/` | Hand-vendored jars (`xmlrpc`, `ObjCBridge`, `simmetrics`, `jacksum`, `appbundler`). |
+| `lib/jars/` | Hand-vendored jars (`jacksum`, `simmetrics`, `xmlrpc`). |
 | `lib/native/win32-x64/` | Windows x64 native binaries used by `filebot.cmd` (MediaInfo, 7-Zip-JBinding, fpcalc, jnidispatch). `win32-x86` remains too; the Mac/Linux folders were removed. |
 | `downloads/` | Offline snapshots of the data indexes and signed `fn:` script bundle. Embedded into the fat jar at build time; no runtime fetch. |
 | `build.xml` | Ant build. Default target is `fatjar`. |
@@ -24,7 +24,6 @@
 | `ivy.xml` | Dependency versions; resolved with Apache Ivy. |
 | `app.properties` | Application version, main class, API keys, service URLs, target JVM. |
 | `build-data/` | Maintenance Groovy scripts run *by FileBot itself* (`filebot -script ...`). Not part of the build. |
-| `installer/`, `website/` | Legacy packaging/website assets; the packaging targets have been removed, so these are unused. |
 
 ## Toolchain
 
@@ -175,7 +174,7 @@ Verified on JDK 21 (Zulu 21 FX, plain Zulu 21, and Corretto 25 + OpenJFX SDK 21.
 ## Known build/runtime quirks
 
 1. **`slf4j-api.jar` missing after a fresh `resolve`.** `slf4j-jdk14`'s POM declares `slf4j-api` a second time as a test-jar, and Ivy's default retrieve pattern has no classifier; the main artifact is never fetched. The test-jar lands at `lib/ivy/test-jar/slf4j-api.jar`, and `fatjar` fails with `The archive slf4j-api.jar doesn't exist`. Fix by downloading the main 1.7.25 jar to `lib/ivy/jar/slf4j-api.jar`, or add `org.slf4j#slf4j-api;1.7.25` to `ivy.xml`.
-2. **Packaging dependencies removed:** `ivy.xml` no longer pulls `jdeb` or `ant-spk`, and the corresponding `init` taskdefs and packaging targets are gone. `installer/` and `website/` assets remain but are unused.
+2. **Packaging dependencies/assets removed:** `ivy.xml` no longer pulls `jdeb` or `ant-spk`, the packaging targets and `init` taskdefs are gone, and `installer/`, `website/` and the unused `appbundler.jar`/`ObjCBridge.jar`/`ant-compress.jar` were removed. The website review generation (`reviews.tsv`) was removed with them.
 3. **`resolve` is a separate target.** The default `fatjar` target does not depend on it. Run `resolve` once (or after changing `ivy.xml`).
 4. **`resolve` downloads ~177 MB** of runtime plus transitive optional/test artifacts. All direct dependencies are on Maven Central.
 5. **`resolve` rewrites `lib/native/win32-x64/**`** (tracked files). It imports Windows x64 natives only; the Mac/Linux native folders were removed. `lib/ivy/`, `build/`, `dist/`, `cache/` are gitignored.
@@ -187,7 +186,7 @@ Verified on JDK 21 (Zulu 21 FX, plain Zulu 21, and Corretto 25 + OpenJFX SDK 21.
 11. **Embedded indexes are frozen** at the snapshots in `downloads/`; update those files and rebuild to refresh them. Live APIs still supply details for newer media.
 12. **JDK 21 compile warnings are expected:** `AccessController`, `AccessControlContext`, `SecurityManager` and `Thread.stop()` are deprecated for removal. `SecureCompiledScript`/`PrivilegedInvocation` still use `AccessController`, but without a global SecurityManager it is effectively a no-op. The build succeeds with warnings.
 13. **JavaFX can be external:** the build uses Zulu 21 FX (javac sees JavaFX), but the runtime does not require an FX JDK. `filebot.cmd` can use an OpenJFX SDK with a plain JDK 21+; verified with Corretto 25 + OpenJFX 21.0.7. If neither an FX JDK nor an SDK is found, it downloads the pinned OpenJFX 21.0.7 SDK once into `%LOCALAPPDATA%\filebot-build-tools\javafx21` (official Gluon URL; launcher bootstrap only). `--enable-native-access=javafx.graphics` is passed when using the external SDK (needed to silence JDK 25 native-access warnings).
-14. **Windows-only cleanup:** Mac/Linux platform classes and branches were removed (`MacAppUtilities`, `DropToUnlock`, `MacXattrView`, GNOME GVFS, `FileBotMenuBar`). `Settings.isWindowsOs()` (`os.name` starts with `Windows`) now drives the system L&F, `WinAppUtilities` and hiding `CLONE`; the `application.deployment=msi` launch hack is gone. `Settings.useGVFS()` remains only because the bundled 2018 scripts reference it (it returns the system property; the app no longer uses it). `ObjCBridge.jar` is no longer copied or bundled.
+14. **Windows-only cleanup:** Mac/Linux platform classes and branches were removed (`MacAppUtilities`, `DropToUnlock`, `MacXattrView`, GNOME GVFS, `FileBotMenuBar`). `Settings.isWindowsOs()` (`os.name` starts with `Windows`) now drives the system L&F, `WinAppUtilities` and hiding `CLONE`; the `application.deployment=msi` launch hack is gone. `Settings.useGVFS()` remains only because the bundled 2018 scripts reference it (it returns the system property; the app no longer uses it). `ObjCBridge.jar` was removed along with the Mac code.
 
 ## Key source files for runtime behaviour
 

@@ -19,7 +19,6 @@
     <libelement value="file://lib/ivy/jar/groovy-all.jar" />
     <libelement value="file://lib/ivy/jar/slf4j-jdk14.jar" />
     <libelement value="file://lib/ivy/jar/hamcrest-core.jar" />
-    <libelement value="jar://$MODULE_DIR$/lib/jars/ObjCBridge.jar!/" />
     <libelement value="file://lib/ivy/jar/junrar.jar" />
     <libelement value="file://lib/ivy/jar/commons-vfs2.jar" />
     <libelement value="file://lib/ivy/jar/commons-logging.jar" />
