@@ -6,7 +6,8 @@ rem FileBot private launcher (console logging stays visible)
 rem
 rem Uses the Windows system L&F, native Explorer move/copy and JNA native
 rem libraries. JavaFX can come either from an FX-enabled JDK (Zulu FX) or from
-rem an external OpenJFX SDK loaded via --module-path at runtime.
+rem an external OpenJFX SDK loaded via --module-path at runtime. If no JavaFX
+rem is found, the SDK is downloaded once into %LOCALAPPDATA%\filebot-build-tools.
 rem Keep this file in the repository root, or copy it next to the jar together
 rem with the lib\native\win32-x64 folder.
 rem
@@ -51,12 +52,13 @@ if not defined JAVA_IS_FX if not "%JAVA_EXE%"=="java" (
 
 rem --- find an external OpenJFX SDK when Java does not include JavaFX
 set "FX_SDK="
-if defined JAVA_IS_FX goto :fx_done
+if defined JAVA_IS_FX goto :fx_detect_done
 if defined FILEBOT_JAVAFX if exist "%FILEBOT_JAVAFX%\lib\javafx.controls.jar" set "FX_SDK=%FILEBOT_JAVAFX%"
 if not defined FX_SDK for /d %%D in ("%LOCALAPPDATA%\filebot-build-tools\javafx21\javafx-sdk-*") do if exist "%%~fD\lib\javafx.controls.jar" set "FX_SDK=%%~fD"
 if not defined FX_SDK for /d %%D in ("C:\Program Files\javafx-sdk-*") do if exist "%%~fD\lib\javafx.controls.jar" set "FX_SDK=%%~fD"
 if not defined FX_SDK if exist "%APP_ROOT%javafx-sdk\lib\javafx.controls.jar" set "FX_SDK=%APP_ROOT%javafx-sdk"
-:fx_done
+if not defined FX_SDK call :download_javafx
+:fx_detect_done
 
 rem --- JavaFX modules and native library path
 set "FX_OPTS="
@@ -98,3 +100,22 @@ if not "%RC%"=="0" (
     pause
 )
 exit /b %RC%
+
+:download_javafx
+set "FX_CACHE=%LOCALAPPDATA%\filebot-build-tools\javafx21"
+set "FX_ZIP=%FX_CACHE%\javafx21-sdk.zip"
+if not exist "%FX_CACHE%" mkdir "%FX_CACHE%" >nul 2>&1
+if not exist "%FX_ZIP%" (
+    echo Downloading OpenJFX 21.0.7 SDK...
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri 'https://download2.gluonhq.com/openjfx/21.0.7/openjfx-21.0.7_windows-x64_bin-sdk.zip' -OutFile '%FX_ZIP%'"
+)
+for /d %%D in ("%FX_CACHE%\javafx-sdk-*") do if exist "%%~fD\lib\javafx.controls.jar" set "FX_SDK=%%~fD"
+if defined FX_SDK exit /b 0
+if not exist "%FX_ZIP%" (
+    echo WARNING: could not download the OpenJFX SDK.
+    exit /b 0
+)
+echo Extracting OpenJFX 21.0.7 SDK...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path '%FX_ZIP%' -DestinationPath '%FX_CACHE%' -Force"
+for /d %%D in ("%FX_CACHE%\javafx-sdk-*") do if exist "%%~fD\lib\javafx.controls.jar" set "FX_SDK=%%~fD"
+exit /b 0
