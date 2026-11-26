@@ -14,7 +14,7 @@
 | `source/` | Java source (385 files), resources, property files. Starts at `net/filebot/Main.java`. |
 | `test/` | JUnit sources; **not** compiled by the `fatjar` target. |
 | `lib/jars/` | Hand-vendored jars (`jacksum`, `simmetrics`, `xmlrpc`). |
-| `lib/native/win32-x64/` | Windows x64 native binaries used by `filebot.cmd` (MediaInfo, 7-Zip-JBinding, fpcalc, jnidispatch). `win32-x86` remains too; the Mac/Linux folders were removed. |
+| `lib/native/win32-x64/` | Windows x64 native binaries used by `filebot.cmd` (MediaInfo, 7-Zip-JBinding, fpcalc, jnidispatch). Mac/Linux and win32-x86 were removed; only x64 is supported. |
 | `downloads/` | Offline snapshots of the data indexes and signed `fn:` script bundle. Embedded into the fat jar at build time; no runtime fetch. |
 | `build.xml` | Ant build. Default target is `fatjar`. |
 | `build.cmd`, `build.ps1` | One-command private build bootstrap (JDK detection, Ant/Ivy cache, resolve, slf4j fix, fatjar). |
